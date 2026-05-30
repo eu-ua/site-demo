@@ -2,69 +2,42 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sensu Space</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    
-    <style>
-        :root {
-            --bg-main: #060609;
-            --bg-card: rgba(19, 19, 28, 0.75);
-            --border-color: rgba(177, 159, 251, 0.15);
-        }
-        body { background-color: var(--bg-main); color: white; font-family: sans-serif; }
-        .custom-card { background-color: var(--bg-card); border: 1px solid var(--border-color); }
-    </style>
 </head>
-<body class="p-4">
-
-    <div class="max-w-md mx-auto">
-        <h1 class="text-2xl font-bold mb-4">Sensu Space</h1>
-        
-        <div class="custom-card p-4 rounded-xl mb-6">
-            <input id="post-text" class="w-full bg-transparent border-b border-[#b19ffb]/20 outline-none p-2" placeholder="Що нового?">
-            <button onclick="sendPost()" class="bg-[#b19ffb] text-black w-full py-2 rounded-lg font-bold mt-3">Опублікувати</button>
-        </div>
-
-        <div id="feed" class="space-y-4">
-            </div>
-    </div>
+<body>
 
     <script>
+        // Твої налаштування
         const firebaseConfig = {
             apiKey: "AIzaSyCq9Y0IF9-qPfwBJ18mjaHd-rN_x47_Dhg",
             authDomain: "site-demo-sensu.firebaseapp.com",
             projectId: "site-demo-sensu",
             storageBucket: "site-demo-sensu.firebasestorage.app",
             messagingSenderId: "187954134124",
-            appId: "1:187954134124:web:80e9f0aa41a9c3ae7aec49",
-            measurementId: "G-XL9VK820LD"
+            appId: "1:187954134124:web:80e9f0aa41a9c3ae7aec49"
         };
 
+        // Запуск
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Функція відправки
-        function sendPost() {
-            const input = document.getElementById('post-text');
-            if(!input.value) return;
-            
+        // Функція, щоб відправити пост:
+        // Використовуй її в onclick="sendPost()"
+        function sendPost(text) {
             db.collection("posts").add({
-                text: input.value,
+                text: text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
-            input.value = "";
         }
 
-        // КРИТИЧНО: Ця функція оновлює стрічку щоразу, як у базі з'являється пост
+        // Функція, щоб вивести всі пости на екран:
+        // Виклич її один раз, коли сторінка завантажиться
         db.collection("posts").orderBy("timestamp", "desc").onSnapshot(snapshot => {
-            const feed = document.getElementById('feed');
-            feed.innerHTML = "";
             snapshot.forEach(doc => {
-                const data = doc.data();
-                feed.innerHTML += `<div class="custom-card p-4 rounded-xl text-sm">${data.text}</div>`;
+                console.log("Пост:", doc.data().text);
+                // Тут ти додаєш код, який малює пост у твоєму дизайні
             });
         });
     </script>
