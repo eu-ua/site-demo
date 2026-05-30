@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensu Space</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Кастомний скроллбар */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: #b19ffb; border-radius: 3px; }
+
+        /* Елементи галактичного логотипу */
+        .galaxy-logo {
+            background: radial-gradient(circle, #b19ffb 0%, #06b6d4 60%, #050508 100%);
+            box-shadow: 0 0 20px rgba(177, 159, 251, 0.4);
+        }
+
+        /* СТИЛІ ТА ДИЗАЙН ТЕМ */
+        :root {
+            --bg-main: #060609;
+            --bg-card: rgba(19, 19, 28, 0.75);
+            --bg-input: #0e0e15;
+            --border-color: rgba(177, 159, 251, 0.15);
+            --border-focus: rgba(177, 159, 251, 0.4);
+            --text-main: #e2e8f0;
+            --text-muted: #71717a;
+            --text-title: #ffffff;
+            --bg-sidebar: rgba(13, 13, 20, 0.9);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            --backdrop: blur(12px);
+        }
+
+        .light-theme {
+            --bg-main: #f4f5f8;
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --bg-input: #f9fafb;
+            --border-color: rgba(0, 0, 0, 0.06);
+            --border-focus: #b19ffb;
+            --text-main: #27272a;
+            --text-muted: #a1a1aa;
+            --text-title: #09090b;
+            --bg-sidebar: rgba(244, 245, 248, 0.95);
+            --card-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.04), 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+            --backdrop: blur(0px);
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+        .custom-card { 
+            background-color: var(--bg-card); 
+            border-color: var(--border-color); 
+            box-shadow: var(--card-shadow);
+            backdrop-filter: var(--backdrop);
+            -webkit-backdrop-filter: var(--backdrop);
+            transition: all 0.3s ease;
+        }
+        .custom-input { background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-title); transition: all 0.2s; }
+        .custom-input:focus { border-color: var(--border-focus); }
+        .custom-sidebar { background-color: var(--bg-sidebar); border-color: var(--border-color); }
+        .text-custom-title { color: var(--text-title); }
+        .text-custom-muted { color: var(--text-muted); }
+    </style>
+</head>
+<body class="font-sans min-h-screen flex flex-col overflow-y-auto relative">
+    
+    <div id="welcome-screen" class="flex-1 flex flex-col items-center justify-center p-6 min-h-screen relative z-10">
+        <div class="mb-10 flex items-center justify-center gap-4">
+            <div class="w-14 h-14 rounded-full relative shrink-0 galaxy-logo flex items-center justify-center overflow-hidden border border-white/10">
+                <div class="absolute w-12 h-3 bg-white/20 rounded-full rotate-45 blur-[1px]"></div>
+                <div class="absolute w-8 h-2 bg-white/40 rounded-full -rotate-45 blur-[1px]"></div>
+                <div class="absolute w-4 h-4 bg-white rounded-full shadow-[0_0_10px_#fff]"></div>
+                <div class="absolute top-2 right-3 w-1 h-1 bg-white rounded-full opacity-70"></div>
+                <div class="absolute bottom-3 left-2 w-1 h-1 bg-white rounded-full opacity-60"></div>
+            </div>
+            <h1 class="text-4xl font-black tracking-[0.25em] text-custom-title">SENSU <span class="text-[#b19ffb] font-light">SPACE</span></h1>
+        </div>
+
+        <div class="custom-card border p-8 rounded-2xl w-full max-w-md">
+            <h2 id="auth-title" class="text-xl font-bold mb-5 text-custom-title text-center">Створити акаунт у Sensu</h2>
+            <div class="space-y-4">
+                <input type="text" id="username-input" class="w-full custom-input border rounded-xl px-4 py-3 text-xs focus:outline-none" placeholder="Придумайте нікнейм...">
+                <input type="password" id="password-input" class="w-full custom-input border rounded-xl px-4 py-3 text-xs focus:outline-none" placeholder="Введіть пароль...">
+                <button onclick="handleAuth()" id="auth-submit-btn" class="w-full bg-[#b19ffb] text-black font-black py-3 rounded-xl text-xs hover:scale-[1.02] active:scale-[0.98] transition shadow-lg shadow-[#b19ffb]/20">Зареєструватися</button>
+                <p class="text-center text-xs text-[#b19ffb] cursor-pointer underline font-medium hover:text-[#9b88f8]" onclick="toggleAuthMode()" id="auth-toggle-link">Увійти в існуючий профіль</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-screen" class="hidden flex-1 flex flex-col relative z-10">
+        <header class="custom-card border-b py-4 px-6 flex flex-col items-center justify-center relative z-20">
+            <div id="header-logo-container" class="flex items-center justify-center gap-3 mb-2 cursor-pointer" onclick="switchTab('feed')">
+                <div class="w-8 h-8 rounded-full relative shrink-0 galaxy-logo flex items-center justify-center overflow-hidden border border-white/10">
+                    <div class="absolute w-7 h-1.5 bg-white/20 rounded-full rotate-45 blur-[1px]"></div>
+                    <div class="absolute w-2 h-2 bg-white rounded-full shadow-[0_0_6px_#fff]"></div>
+                </div>
+                <h1 class="text-2xl font-black tracking-[0.18em] text-custom-title">SENSU <span class="text-[#b19ffb] font-light">SPACE</span></h1>
+            </div>
+            
+            <div class="flex items-center gap-4 mt-2 flex-wrap justify-center">
+                <div class="flex gap-1 custom-card border p-1 rounded-xl">
+                    <button onclick="switchTab('cinema')" class="top-tab-btn px-4 py-2 rounded-lg text-xs font-semibold text-custom-muted hover:text-custom-title transition" id="btn-tab-cinema">🎬 Кіно рейв</button>
+                    <button onclick="switchTab('playlist')" class="top-tab-btn px-4 py-2 rounded-lg text-xs font-semibold text-custom-muted hover:text-custom-title transition" id="btn-tab-playlist">🎵 Плей-лист</button>
+                    <button onclick="switchTab('bookstore')" class="top-tab-btn px-4 py-2 rounded-lg text-xs font-semibold text-custom-muted hover:text-custom-title transition" id="btn-tab-bookstore">📚 Книгарня</button>
+                </div>
+                <button onclick="toggleTheme()" class="custom-card border p-2.5 rounded-xl text-xs flex items-center justify-center hover:scale-110 active:scale-95 transition" title="Змінити стиль">
+                    <span id="theme-icon-slot" class="text-base">🌗</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex flex-1 flex-col md:flex-row min-h-[calc(100vh-140px)]">
+            <aside class="w-full md:w-64 custom-sidebar border-b md:border-b-0 md:border-r p-5 flex flex-col justify-between shrink-0">
+                <div class="flex flex-col gap-2">
+                    <p class="text-[10px] font-black text-custom-muted uppercase tracking-widest px-3 mb-2">Навігація</p>
+                    <button onclick="switchTab('feed')" class="sidebar-btn flex items-center gap-3 px-4 py-3 rounded-xl text-left text-xs text-custom-muted font-semibold hover:bg-[#b19ffb]/5 transition" id="side-tab-feed">✨ Головна Стрічка</button>
+                    <button onclick="switchTab('profile')" class="sidebar-btn flex items-center gap-3 px-4 py-3 rounded-xl text-left text-xs text-custom-muted font-semibold hover:bg-[#b19ffb]/5 transition" id="side-tab-profile">👤 Мій Профіль</button>
+                    <button onclick="switchTab('users-search')" class="sidebar-btn flex items-center gap-3 px-4 py-3 rounded-xl text-left text-xs text-custom-muted font-semibold hover:bg-[#b19ffb]/5 transition" id="side-tab-users-search">🔍 Пошук людей</button>
+                </div>
+                
+                <div class="border-t border-gray-500/10 pt-4 mt-4 text-xs flex items-center gap-3">
+                    <img id="menu-avatar-img" src="" class="w-9 h-9 rounded-full object-cover hidden border border-[#b19ffb]/30">
+                    <div id="menu-avatar-txt" class="w-9 h-9 rounded-full bg-[#b19ffb] text-black font-black flex items-center justify-center shadow-md">U</div>
+                    <div>
+                        <p class="font-black text-custom-title tracking-wide" id="menu-username">User</p>
+                        <p class="text-[10px] text-custom-muted">Простір вільних людей</p>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="flex-1 p-4 md:p-8">
+                <div id="tab-feed" class="tab-content max-w-xl mx-auto space-y-6">
+                    <div class="custom-card border p-4 rounded-2xl flex items-center justify-between gap-3 cursor-pointer" onclick="openNewPostModal()">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xl">📸</span>
+                            <span class="text-xs text-custom-muted font-medium">Що нового у вашому всесвіті?</span>
+                        </div>
+                        <span class="text-xs bg-[#b19ffb] text-black font-black px-4 py-1.5 rounded-xl">+ Пост</span>
+                    </div>
+                    <div id="threads-feed" class="space-y-6"></div>
+                </div>
+
+                <div id="tab-users-search" class="tab-content hidden max-w-xl mx-auto space-y-4">
+                    <h2 class="text-lg font-black text-custom-title border-b border-gray-500/10 pb-2 tracking-wide">🔍 Пошук користувачів</h2>
+                    <input type="text" id="user-search-input" oninput="searchUsers(this.value)" placeholder="Введіть нікнейм людини..." class="w-full custom-input border text-xs rounded-xl p-3 focus:outline-none">
+                    <div id="users-search-results" class="space-y-2.5"></div>
+                </div>
+
+                <div id="tab-view-profile" class="tab-content hidden max-w-2xl mx-auto space-y-6">
+                    <button onclick="switchTab('users-search')" class="text-xs text-custom-title custom-card border px-4 py-2 rounded-xl hover:border-[#b19ffb] font-medium">← Назад до пошуку</button>
+                    
+                    <div class="custom-card border p-6 rounded-2xl space-y-5">
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="flex flex-col sm:flex-row items-center gap-4">
+                                <div id="view-avatar-placeholder" class="w-16 h-16 bg-[#b19ffb] text-black text-2xl font-black rounded-full flex items-center justify-center shadow-lg"></div>
+                                <img id="view-avatar-img" src="" class="w-16 h-16 rounded-full object-cover border border-[#b19ffb]/20 shadow-lg hidden">
+                                <div class="text-center sm:text-left">
+                                    <h2 class="text-2xl font-black text-custom-title tracking-wide" id="view-username">Користувач</h2>
+                                    <p class="text-xs text-custom-title font-medium mt-1 whitespace-pre-line" id="view-bio-text"></p>
+                                    <p id="view-track-status" class="text-xs text-[#b19ffb] font-semibold mt-1.5 flex items-center justify-center sm:justify-start gap-1.5 italic"></p>
+                                    <p class="text-[11px] text-[#b19ffb] underline mt-1" id="view-links-text"></p>
+                                </div>
+                            </div>
+                            <button id="view-follow-btn" class="text-xs font-black px-5 py-2.5 rounded-xl transition shadow-sm"></button>
+                        </div>
+                        <div class="flex justify-center sm:justify-start gap-6 text-xs text-custom-muted border-t border-gray-500/10 pt-4">
+                            <button onclick="openConnectionsModal('view', 'following')" class="hover:text-[#b19ffb] transition font-medium">🗣️ <span class="text-custom-title font-black" id="view-following-count">0</span> Слідкування</button>
+                            <button onclick="openConnectionsModal('view', 'followers')" class="hover:text-[#b19ffb] transition font-medium">👥 <span class="text-custom-title font-black" id="view-followers-count">0</span> Слідкувачі</button>
+                            <div class="font-medium">❤️ <span class="text-custom-title font-black" id="view-likes-count">0</span> Уподобайки</div>
+                        </div>
+                    </div>
+
+                    <div class="border-b border-gray-500/10 flex gap-4 text-xs overflow-x-auto pb-1">
+                        <button onclick="switchViewProfileSubTab('posts')" id="view-sub-btn-posts" class="view-sub-tab-btn border-b-2 border-[#b19ffb] pb-2 text-custom-title font-black whitespace-nowrap">📝 Публікації</button>
+                        <button onclick="switchViewProfileSubTab('music')" id="view-sub-btn-music" class="view-sub-tab-btn text-custom-muted pb-2 hover:text-custom-title font-bold whitespace-nowrap">🎵 Треки</button>
+                        <button onclick="switchViewProfileSubTab('media')" id="view-sub-btn-media" class="view-sub-tab-btn text-custom-muted pb-2 hover:text-custom-title font-bold whitespace-nowrap">📸 Медіа</button>
+                        <button onclick="switchViewProfileSubTab('reposts')" id="view-sub-btn-reposts" class="view-sub-tab-btn text-custom-muted pb-2 hover:text-custom-title font-bold whitespace-nowrap">🔄 Репости</button>
+                    </div>
+
+                    <div id="view-profile-sub-content" class="space-y-5">
+                        <div id="view-sub-tab-posts" class="view-profile-sub-zone space-y-4"></div>
+                        <div id="view-sub-tab-music" class="view-profile-sub-zone hidden text-center p-6 custom-card border rounded-xl text-xs text-custom-muted">Немає доданих аудіозаписів</div>
+                        <div id="view-sub-tab-media" class="view-profile-sub-zone hidden grid grid-cols-3 gap-2"></div>
+                        <div id="view-sub-tab-reposts" class="view-profile-sub-zone hidden space-y-4"></div>
+                    </div>
+                </div>
+
+                <div id="tab-profile" class="tab-content hidden max-w-2xl mx-auto space-y-6">
+                    <div class="custom-card border p-6 rounded-2xl space-y-5">
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="flex flex-col sm:flex-row items-center gap-4">
+                                <div class="relative group cursor-pointer" onclick="document.getElementById('avatar-file-input').click()">
+                                    <div id="avatar-placeholder" class="w-18 h-18 bg-[#b19ffb] text-black text-3xl font-black rounded-full flex items-center justify-center shadow-md">U</div>
+                                    <img id="avatar-img" src="" class="w-18 h-18 rounded-full object-cover border border-[#b19ffb]/30 shadow-md hidden">
+                                    <div class="absolute inset-0 bg-black/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-[10px] text-white font-black p-1 text-center">ЗМІНИТИ</div>
+                                    <input type="file" id="avatar-file-input" class="hidden" accept="image/*" onchange="uploadAvatar(event)">
+                                </div>
+                                <div class="text-center sm:text-left">
+                                    <h2 class="text-2xl font-black text-custom-title tracking-wide" id="cabinet-username">User</h2>
+                                    <p class="text-xs text-custom-title font-medium whitespace-pre-line mt-1" id="profile-bio-text">Профіль без опису 🌌</p>
+                                    <p id="profile-track-status" class="text-xs text-[#b19ffb] font-semibold mt-1.5 flex items-center justify-center sm:justify-start gap-1.5 italic"></p>
+                                    <p class="text-[11px] text-custom-muted mt-1" id="profile-links-text"></p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="openEditBio()" class="text-xs custom-card border px-4 py-2 rounded-xl hover:border-[#b19ffb] font-semibold">Редагувати</button>
+                                <button onclick="logout()" class="text-xs bg-red-950/20 text-red-400 border border-red-900/30 px-4 py-2 rounded-xl hover:bg-red-900/40 transition font-semibold">Вийти</button>
+                            </div>
+                        </div>
+                        <div class="flex justify-center sm:justify-start gap-6 text-xs text-custom-muted border-t border-gray-500/10 pt-4">
+                            <button onclick="openConnectionsModal('my', 'following')" class="hover:text-[#b19ffb] transition font-medium">🗣️ <span class="text-custom-title font-black" id="my-following-count">0</span> Слідкування</button>
+                            <button onclick="openConnectionsModal('my', 'followers')" class="hover:text-[#b19ffb] transition font-medium">👥 <span class="text-custom-title font-black" id="my-followers-count">0</span> Слідкувачі</button>
+                            <div class="font-medium">❤️ <span class="text-custom-title font-black" id="my-likes-count">0</span> Уподобайки</div>
+                        </div>
+                    </div>
+
+                    <div id="edit-bio-box" class="hidden custom-card border p-5 rounded-2xl space-y-4">
+                        <h4 class="text-xs font-black text-custom-title uppercase tracking-wider">Налаштування профілю</h4>
+                        <textarea id="input-bio" rows="2" class="w-full custom-input border rounded-xl p-3 text-xs focus:outline-none resize-none" placeholder="Опис вашого профілю..."></textarea>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[10px] text-custom-muted uppercase font-black block mb-1">🎵 Музичний статус</label>
+                                <input type="text" id="input-track" class="w-full custom-input border rounded-xl p-2.5 text-xs focus:outline-none" placeholder="Назва улюбленої пісні...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-custom-muted uppercase font-black block mb-1">🔗 Веб-посилання</label>
+                                <input type="text" id="input-link" class="w-full custom-input border rounded-xl p-2.5 text-xs focus:outline-none" placeholder="Посилання на сайт чи соцмережу...">
+                            </div>
+                        </div>
+                        <button onclick="saveBio()" class="bg-[#b19ffb] text-black font-black px-5 py-2 rounded-xl text-xs hover:scale-105 transition shadow-md">Зберегти зміни</button>
+                    </div>
+
+                    <div class="border-b border-gray-500/10 flex gap-4 text-xs overflow-x-auto pb-1">
+                        <button onclick="switchProfileSubTab('posts')" id="sub-btn-posts" class="sub-tab-btn border-b-2 border-[#b19ffb] pb-2 text-custom-title font-black whitespace-nowrap">📝 Публікації</button>
+                        <button onclick="switchProfileSubTab('music')" id="sub-btn-music" class="sub-tab-btn text-custom-muted pb-2 hover:text-custom-title font-bold whitespace-nowrap">🎵 Мої Треки</button>
+                        <button onclick="switchProfileSubTab('media')" id="sub-btn-media" class="sub-tab-btn text-custom-muted pb-2 hover:text-custom-title font-bold whitespace-nowrap">📸 Медіа</button>
+                        <button onclick="switchProfileSubTab('reposts')" id="sub-btn-reposts" class="sub-tab-btn text-custom-muted pb-2 hover:text-custom-title font-bold whitespace-nowrap">🔄 Репости</button>
+                    </div>
+
+                    <div id="profile-sub-content" class="space-y-4">
+                        <div id="sub-tab-posts" class="profile-sub-zone space-y-4"></div>
+                        <div id="sub-tab-music" class="profile-sub-zone hidden text-center p-6 custom-card border rounded-xl text-xs text-custom-muted">Немає доданих аудіозаписів</div>
+                        <div id="sub-tab-media" class="profile-sub-zone hidden grid grid-cols-3 gap-2"></div>
+                        <div id="sub-tab-reposts" class="profile-sub-zone hidden space-y-4"></div>
+                    </div>
+                </div>
+
+                <div id="tab-cinema" class="tab-content hidden max-w-4xl mx-auto space-y-5">
+                    <h2 class="text-lg font-black text-custom-title border-b border-gray-500/10 pb-2">🎬 Спільний Кіно Рейв</h2>
+                    <div class="custom-card border rounded-2xl aspect-video flex flex-col items-center justify-center relative overflow-hidden bg-black shadow-inner">
+                        <iframe id="cinema-video-frame" class="w-full h-full hidden" src="" frameborder="0" allowfullscreen></iframe>
+                        <div id="movie-player-placeholder" class="text-center p-4"><p class="text-custom-muted text-xs font-medium">Шукайте фільм у полі нижче для завантаження рейву</p></div>
+                    </div>
+                    <div class="custom-card border p-4 rounded-2xl"><input type="text" id="cinema-search" oninput="globalMovieSearch(this.value)" placeholder="Введіть назву стрічки..." class="w-full custom-input border text-xs rounded-xl p-3 focus:outline-none"></div>
+                </div>
+
+                <div id="tab-playlist" class="tab-content hidden max-w-4xl mx-auto space-y-5">
+                    <h2 class="text-lg font-black text-custom-title border-b border-gray-500/10 pb-2">🎵 Глобальний Плей-лист</h2>
+                    <div class="custom-card border p-4 rounded-2xl flex justify-between items-center shadow-md"><audio id="global-audio-player" controls class="h-9 w-full max-w-md"></audio></div>
+                    <div class="custom-card border p-4 rounded-2xl"><input type="text" id="music-search" oninput="globalMusicSearch(this.value)" placeholder="Шукати трек..." class="w-full custom-input border text-xs rounded-xl p-3 focus:outline-none"></div>
+                </div>
+
+                <div id="tab-bookstore" class="tab-content hidden max-w-xl mx-auto space-y-4">
+                    <h2 class="text-lg font-black text-custom-title border-b border-gray-500/10 pb-2">📚 Глобальна Книгарня</h2>
+                    <input type="text" id="book-search" oninput="globalBookSearch(this.value)" placeholder="Знайти книгу..." class="w-full custom-input border text-xs rounded-xl p-3 focus:outline-none">
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="new-post-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+        <div class="custom-card border w-full max-w-md rounded-2xl p-5 space-y-4">
+            <div class="flex justify-between items-center border-b border-gray-500/10 pb-2">
+                <h3 class="text-xs font-black text-custom-title uppercase tracking-wider">✨ Створити нову публікацію</h3>
+                <button onclick="closeNewPostModal()" class="text-custom-muted hover:text-red-400 font-bold text-xs">✕</button>
+            </div>
+            <textarea id="post-text" rows="3" class="w-full custom-input border rounded-xl p-3 text-xs focus:outline-none resize-none" placeholder="Поділіться думками з космосом..."></textarea>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <label class="cursor-pointer custom-card border text-custom-title text-xs px-4 py-2 rounded-xl hover:border-[#b19ffb] transition font-medium text-center">
+                        📁 Файл
+                        <input type="file" id="post-file-input" class="hidden" accept="image/*,video/*" onchange="handlePostFileSelect(this)">
+                    </label>
+                    <span id="post-file-status" class="text-[11px] text-custom-muted italic truncate max-w-[150px]">Не обрано</span>
+                </div>
+                <button onclick="createPost()" class="bg-[#b19ffb] text-black text-xs font-black px-6 py-2 rounded-xl shadow-md">Опублікувати</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="connections-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+        <div class="custom-card border w-full max-w-sm rounded-2xl p-5 flex flex-col max-h-[75vh]">
+            <div class="flex justify-between items-center border-b border-gray-500/10 pb-3 mb-4">
+                <h3 id="modal-conn-title" class="text-sm font-black text-custom-title uppercase tracking-wider">Список</h3>
+                <button onclick="closeConnectionsModal()" class="text-custom-muted hover:text-red-400 font-bold text-sm">✕</button>
+            </div>
+            <div id="modal-conn-list" class="space-y-2 flex-1 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = localStorage.getItem('currentUser') || null;
+        let isLoginMode = false;
+        
+        let defaultPosts = [
+            { id: 1001, author: 'admin', text: 'Естетика вечірніх міст та нескінченних подорожей 🌆✨ Насолоджуюсь моментом.', mediaUrl: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=800&auto=format&fit=crop', mediaType: 'image', likedBy: [], comments: [], isRepost: false },
+            { id: 1002, author: 'admin', text: 'Затишні неонові вулиці та вечірня кава в улюбленому кібер-кафе ☕️🛸 Попереду багато цікавого.', mediaUrl: 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?q=80&w=800&auto=format&fit=crop', mediaType: 'image', likedBy: [], comments: [], isRepost: false },
+            { id: 1003, author: 'admin', text: 'Мінімалізм та архітектура майбутнього. Дизайн надихає на створення нових масштабних проектів 📐💎', mediaUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=800&auto=format&fit=crop', mediaType: 'image', likedBy: [], comments: [], isRepost: false },
+            { id: 1004, author: 'admin', text: 'Світло, затишок та натхнення у кожній маленькій деталі навколо нас 🌌🔋', mediaUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop', mediaType: 'image', likedBy: [], comments: [], isRepost: false }
+        ];
+
+        let usersDB = JSON.parse(localStorage.getItem('sensu_users_db_v3')) || [];
+        let postsDB = JSON.parse(localStorage.getItem('sensu_posts_db_v3'));
+        
+        if (!postsDB || postsDB.length === 0) {
+            postsDB = defaultPosts;
+            localStorage.setItem('sensu_posts_db_v3', JSON.stringify(postsDB));
+        }
+        
+        if (!usersDB.some(u => u.username === 'admin')) {
+            usersDB.push({ username: 'admin', bio: 'Творець Sensu Space 🪐 Рада бачити всіх тут!', links: '', track: 'Night city lights', avatar: '', followers: [], following: [], likesCount: 42 });
+            localStorage.setItem('sensu_users_db_v3', JSON.stringify(usersDB));
+        }
+
+        let customAvatarBase64 = null;
+        let userBio = "";
+        let userLinks = "";
+        let userTrack = "";
+        let currentPostFileUrl = "";
+        let currentPostFileType = "";
+
+        window.onload = function() {
+            const savedTheme = localStorage.getItem('sensu_theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.classList.add('light-theme');
+                document.getElementById('theme-icon-slot').innerText = '☀️';
+            }
+            if (currentUser) { showMainApp(); } else { showAuthScreen(); }
+        };
+
+        function showAuthScreen() {
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('app-screen').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            
+            const myData = usersDB.find(usr => usr.username === currentUser);
+            if(myData) {
+                userBio = myData.bio || "";
+                userLinks = myData.links || "";
+                userTrack = myData.track || "";
+                customAvatarBase64 = myData.avatar || null;
+            } else {
+                usersDB.push({ username: currentUser, bio: "Мандрівник у Sensu Space 🌌", links: "", track: "", avatar: "", followers: [], following: [], likesCount: 0 });
+                localStorage.setItem('sensu_users_db_v3', JSON.stringify(usersDB));
+            }
+            
+            document.getElementById('cabinet-username').innerText = currentUser;
+            document.getElementById('menu-username').innerText = currentUser;
+            
+            applyAvatarUI();
+            updateBioUI();
+            renderFeed();
+            renderProfileSubTabs();
+            updateCounters();
+            switchTab('feed');
+        }
+
+        function toggleTheme() {
+            const isLight = document.documentElement.classList.toggle('light-theme');
+            localStorage.setItem('sensu_theme', isLight ? 'light' : 'dark');
+            document.getElementById('theme-icon-slot').innerText = isLight ? '☀️' : '🌗';
+        }
+
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('auth-title').innerText = isLoginMode ? "Вхід у Sensu" : "Створити акаунт у Sensu";
+            document.getElementById('auth-submit-btn').innerText = isLoginMode ? "Увійти" : "Зареєструватися";
+            document.getElementById('auth-toggle-link').innerText = isLoginMode ? "Зареєструвати новий акаунт" : "Увійти в існуючий профіль";
+        }
+
+        function handleAuth() {
+            const username = document.getElementById('username-input').value.trim();
+            const pass = document.getElementById('password-input').value.trim();
+            if(!username || !pass) return alert("Будь ласка, заповніть поля!");
+            
+            if (isLoginMode) {
+                const userExists = usersDB.find(u => u.username === username);
+                if (!userExists) return alert("Користувача не знайдено!");
+                currentUser = username;
+            } else {
+                const userExists = usersDB.some(u => u.username === username);
+                if (userExists) return alert("Цей нікнейм вже зайнятий!");
+                
+                usersDB.push({
+                    username: username, bio: "Мандрівник у Sensu Space 🌌", links: "", track: "", avatar: "", followers: [], following: [], likesCount: 0
+                });
+                localStorage.setItem('sensu_users_db_v3', JSON.stringify(usersDB));
+                currentUser = username;
+            }
+            
+            localStorage.setItem('currentUser', currentUser);
+            showMainApp();
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            showAuthScreen();
+        }
+
+        function switchTab(tabId) {
+            if (!currentUser) return showAuthScreen();
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            const target = document.getElementById(`tab-${tabId}`);
+            if(target) target.classList.remove('hidden');
+            
+            document.querySelectorAll('.top-tab-btn, .sidebar-btn').forEach(b => b.classList.remove('text-[#b19ffb]', 'font-bold', 'bg-[#b19ffb]/5'));
+            const tBtn = document.getElementById(`btn-tab-${tabId}`); if(tBtn) tBtn.classList.add('text-[#b19ffb]', 'font-bold');
+            const sBtn = document.getElementById(`side-tab-${tabId}`); if(sBtn) sBtn.classList.add('text-[#b19ffb]', 'font-bold', 'bg-[#b19ffb]/5');
+        }
+
+        function openNewPostModal() { document.getElementById('new-post-modal').classList.remove('hidden'); }
+        function closeNewPostModal() { document.getElementById('new-post-modal').classList.add('hidden'); }
+
+        function handlePostFileSelect(input) {
+            const file = input.files[0];
+            if (file) {
+                const r = new FileReader();
+                r.onload = function(e) {
+                    currentPostFileUrl = e.target.result;
+                    currentPostFileType = file.type.startsWith('video/') ? 'video' : 'image';
+                    document.getElementById('post-file-status').innerText = `Готово: ${file.name}`;
+                };
+                r.readAsDataURL(file);
+            }
+        }
+
+        function createPost() {
+            const txt = document.getElementById('post-text').value.trim();
+            if(!txt && !currentPostFileUrl) return alert("Немає контенту для публікації!");
+            
+            postsDB.unshift({
+                id: Date.now(), author: currentUser, text: txt, mediaUrl: currentPostFileUrl, mediaType: currentPostFileType, likedBy: [], comments: [], isRepost: false
+            });
+            
+            localStorage.setItem('sensu_posts_db_v3', JSON.stringify(postsDB));
+            document.getElementById('post-text').value = "";
+            document.getElementById('post-file-status').innerText = "Не обрано";
+            currentPostFileUrl = ""; currentPostFileType = "";
+            closeNewPostModal();
+            renderFeed();
+            renderProfileSubTabs();
+        }
+
+        function repostPost(id) {
+            const originPost = postsDB.find(p => p.id === id);
+            if (!originPost) return;
+
+            const hasAlreadyReposted = postsDB.some(p => p.author === currentUser && p.originId === id);
+            if (hasAlreadyReposted) return alert("Ви вже репостнули цю публікацію!");
+
+            postsDB.unshift({
+                id: Date.now(),
+                originId: originPost.id,
+                author: currentUser,
+                text: originPost.text,
+                mediaUrl: originPost.mediaUrl,
+                mediaType: originPost.mediaType,
+                likedBy: [],
+                comments: [],
+                isRepost: true,
+                originalAuthor: originPost.author
+            });
+
+            localStorage.setItem('sensu_posts_db_v3', JSON.stringify(postsDB));
+            alert("Публікацію успішно репостнуто у ваш профіль!");
+            renderFeed();
+            renderProfileSubTabs();
+        }
+
+        function deletePost(id) {
+            postsDB = postsDB.filter(p => p.id !== id);
+            localStorage.setItem('sensu_posts_db_v3', JSON.stringify(postsDB));
+            renderFeed();
+            renderProfileSubTabs();
+        }
+
+        function deleteComment(postId, commentIndex) {
+            const post = postsDB.find(p => p.id === postId);
+            if (post) {
+                post.comments.splice(commentIndex, 1);
+                localStorage.setItem('sensu_posts_db_v3', JSON.stringify(postsDB));
+                renderFeed();
+            }
+        }
+
+        // Універсальний конструктор Instagram-картки поста
+        function createPostCardHTML(post, containerContext) {
+            let mediaHTML = post.mediaUrl ? (post.mediaType === 'video' ? `<video src="${post.mediaUrl}" controls class="w-full rounded-xl object-cover mt-2 max-h-[450px] bg-black"></video>` : `<img src="${post.mediaUrl}" class="w-full rounded-xl object-cover mt-2 max-h-[450px] bg-black">`) : "";
+            let isMyPost = post.author === currentUser;
+            let deletePostBtn = isMyPost ? `<button onclick="deletePost(${post.id})" class="text-[10px] text-red-400 hover:underline">Видалити 🗑️</button>` : "";
+            let repostBadge = post.isRepost ? `<p class="text-[10px] text-[#b19ffb] font-bold mb-1">🔄 Репост від @${post.originalAuthor}</p>` : "";
+
+            let commentsHTML = "";
+            post.comments.forEach((c, idx) => {
+                let deleteCommentBtn = c.author === currentUser ? `<button onclick="deleteComment(${post.id}, ${idx})" class="text-[10px] text-red-500 hover:underline ml-2">❌</button>` : "";
+                commentsHTML += `<div class="custom-input border p-2 rounded-lg text-xs flex justify-between items-center"><div><span class="text-[#b19ffb] font-bold cursor-pointer" onclick="viewUserProfile('${c.author}')">${c.author}:</span> ${c.text}</div>${deleteCommentBtn}</div>`;
+            });
+            
+            const hasLiked = post.likedBy.includes(currentUser);
+            
+            return `
+                <div class="custom-card border rounded-2xl overflow-hidden shadow-xl bg-card">
+                    <div class="p-4 flex justify-between items-center border-b border-gray-500/5">
+                        <div>
+                            ${repostBadge}
+                            <span class="text-xs font-black text-custom-title hover:underline cursor-pointer flex items-center gap-1.5" onclick="viewUserProfile('${post.author}')">
+                                <div class="w-5 h-5 bg-[#b19ffb] rounded-full text-[9px] text-black font-black flex items-center justify-center">${post.author.charAt(0).toUpperCase()}</div>
+                                @${post.author}
+                            </span>
+                        </div>
+                        ${deletePostBtn}
+                    </div>
+                    
+                    <div class="p-4 space-y-3">
+                        <p class="text-xs text-custom-title leading-relaxed">${post.text}</p>
+                        ${mediaHTML}
+                    </div>
+
+                    <div class="px-4 pb-4 border-t border-gray-500/5 pt-3 space-y-3">
+                        <div class="flex items-center gap-4 text-xs">
+                            <button onclick="likePost(${post.id})" class="flex items-center gap-1.5 font-bold transition hover:scale-110 ${hasLiked ? 'text-red-500' : 'text-custom-muted hover:text-red-400'}">
+                                <span>${hasLiked ? '❤️' : '🤍'}</span> ${post.likedBy.length}
+                            </button>
+                            <button class="flex items-center gap-1.5 font-bold text-custom-muted hover:text-custom-title transition">
+                                <span>💬</span> ${post.comments.length}
+                            </button>
+                            <button onclick="repostPost(${post.id})" class="flex items-center gap-1.5 font-bold text-custom-muted hover:text-[#b19ffb] transition ml-auto">
+                                <span>🔄 Репост</span>
+                            </button>
+                        </div>
+
+                        <div class="space-y-1.5 max-h-40 overflow-y-auto pt-1">${commentsHTML}</div>
+                        
+                        <div class="flex gap-2 pt-1">
+                            <input type="text" id="com-in-${post.id}" placeholder="Додати коментар..." class="flex-1 custom-input border text-xs rounded-xl px-3 py-2 focus:outline-none">
+                            <button onclick="addComment(${post.id})" class="bg-[#b19ffb]/10 text-[#b19ffb] border border-[#b19ffb]/20 text-xs px-3 rounded-xl font-bold hover:bg-[#b19ffb]/20 transition">Надіслати</button>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function renderFeed() {
+            const feed = document.getElementById('threads-feed');
+            if(!feed) return; feed.innerHTML = "";
+            postsDB.forEach(post => {
+                feed.innerHTML += createPostCardHTML(post, 'feed');
+            });
+        }
+
+        // Рендеринг вкладок для ВЛАСНОГО ПРОФІЛЮ
+        function renderProfileSubTabs() {
+            const myPostsZone = document.getElementById('sub-tab-posts');
+            const myRepostsZone = document.getElementById('sub-tab-reposts');
+            const myMediaZone = document.getElementById('sub-tab-media');
+            
+            if(!myPostsZone) return;
+            myPostsZone.innerHTML = ""; myRepostsZone.innerHTML = ""; myMediaZone.innerHTML = "";
+            
+            const myPosts = postsDB.filter(p => p.author === currentUser && !p.isRepost);
+            const myReposts = postsDB.filter(p => p.author === currentUser && p.isRepost);
+            const myMedia = postsDB.filter(p => p.author === currentUser && p.mediaUrl);
+
+            if(myPosts.length === 0) {
+                myPostsZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center p-4">Ви ще нічого не опублікували</p>`;
+            } else {
+                myPosts.forEach(post => { myPostsZone.innerHTML += createPostCardHTML(post, 'my-profile'); });
+            }
+
+            if(myReposts.length === 0) {
+                myRepostsZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center p-4">Репости відсутні</p>`;
+            } else {
+                myReposts.forEach(post => { myRepostsZone.innerHTML += createPostCardHTML(post, 'my-profile'); });
+            }
+
+            if(myMedia.length === 0) {
+                myMediaZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center col-span-3 p-4">Медіафайли відсутні</p>`;
+            } else {
+                myMedia.forEach(post => {
+                    myMediaZone.innerHTML += `<img src="${post.mediaUrl}" class="w-full aspect-square object-cover rounded-xl border border-gray-500/10 shadow-md">`;
+                });
+            }
+        }
+
+        // Рендеринг вкладок ДЛЯ ЧУЖОГО ПРОФІЛЮ
+        function renderViewProfileSubTabs(targetUser) {
+            const viewPostsZone = document.getElementById('view-sub-tab-posts');
+            const viewRepostsZone = document.getElementById('view-sub-tab-reposts');
+            const viewMediaZone = document.getElementById('view-sub-tab-media');
+            
+            viewPostsZone.innerHTML = ""; viewRepostsZone.innerHTML = ""; viewMediaZone.innerHTML = "";
+            
+            const targetedPosts = postsDB.filter(p => p.author === targetUser && !p.isRepost);
+            const targetedReposts = postsDB.filter(p => p.author === targetUser && p.isRepost);
+            const targetedMedia = postsDB.filter(p => p.author === targetUser && p.mediaUrl);
+
+            // Публікації
+            if(targetedPosts.length === 0) {
+                viewPostsZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center p-4">Користувач ще не має публікацій</p>`;
+            } else {
+                targetedPosts.forEach(post => { viewPostsZone.innerHTML += createPostCardHTML(post, 'view-profile'); });
+            }
+
+            // Репости
+            if(targetedReposts.length === 0) {
+                viewRepostsZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center p-4">Немає репостів</p>`;
+            } else {
+                targetedReposts.forEach(post => { viewRepostsZone.innerHTML += createPostCardHTML(post, 'view-profile'); });
+            }
+
+            // Галерея (Медіа)
+            if(targetedMedia.length === 0) {
+                viewMediaZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center col-span-3 p-4">Галерея порожня</p>`;
+            } else {
+                targetedMedia.forEach(post => {
+                    viewMediaZone.innerHTML += `<img src="${post.mediaUrl}" class="w-full aspect-square object-cover rounded-xl border border-gray-500/10 shadow-sm">`;
+                });
+            }
+        }
+
+        function likePost(id) {
+            const post = postsDB.find(p => p.id === id);
+            if(post) {
+                const idx = post.likedBy.indexOf(currentUser);
+                const targetUser = usersDB.find(u => u.username === post.author);
+                if(idx === -1) {
+                    post.likedBy.push(currentUser);
+                    if(targetUser) targetUser.likesCount = (targetUser.likesCount || 0) + 1;
+                } else {
+                    post.likedBy.splice(idx, 1);
+                    if(targetUser && targetUser.likesCount > 0) targetUser.likesCount--;
+                }
+                localStorage.setItem('sensu_posts_db_v3', JSON.stringify(postsDB));
+                localStorage.setItem('sensu_users_db_v3', JSON.stringify(usersDB));
+                renderFeed();
+                renderProfileSubTabs();
+                
+                const activeViewUser = document.getElementById('view-username').innerText;
+                if(activeViewUser) { renderViewProfileSubTabs(activeViewUser); }
+                updateCounters();
+            }
+        }
+
+        function addComment(id) {
+            const inp = document.getElementById(`com-in-${id}`);
+            if(!inp || !inp.value.trim()) return;
+            const post = postsDB.find(p => p.id === id);
+            if(post) {
+                post.comments.push({ author: currentUser, text: inp.value.trim() });
+                localStorage.setItem('sensu_posts_db_v3', JSON.stringify(postsDB));
+                inp.value = ""; 
+                renderFeed();
+                renderProfileSubTabs();
+                const activeViewUser = document.getElementById('view-username').innerText;
+                if(activeViewUser) { renderViewProfileSubTabs(activeViewUser); }
+            }
+        }
+
+        function openEditBio() {
+            document.getElementById('edit-bio-box').classList.toggle('hidden');
+            document.getElementById('input-bio').value = userBio;
+            document.getElementById('input-link').value = userLinks;
+            document.getElementById('input-track').value = userTrack;
+        }
+
+        function saveBio() {
+            userBio = document.getElementById('input-bio').value.trim();
+            userLinks = document.getElementById('input-link').value.trim();
+            userTrack = document.getElementById('input-track').value.trim();
+            
+            const myUser = usersDB.find(u => u.username === currentUser);
+            if(myUser) {
+                myUser.bio = userBio; myUser.links = userLinks; myUser.track = userTrack;
+                localStorage.setItem('sensu_users_db_v3', JSON.stringify(usersDB));
+            }
+            document.getElementById('edit-bio-box').classList.add('hidden');
+            updateBioUI();
+        }
+
+        function updateBioUI() {
+            document.getElementById('profile-bio-text').innerText = userBio || "Опис профілю відсутній";
+            const trackStatus = document.getElementById('profile-track-status');
+            if(userTrack) {
+                trackStatus.innerHTML = `🎧 Статус: <span class="underline">${userTrack}</span>`;
+                trackStatus.classList.remove('hidden');
+            } else { trackStatus.classList.add('hidden'); }
+            document.getElementById('profile-links-text').innerHTML = userLinks ? `🔗 <a href="${userLinks}" target="_blank" class="text-[#b19ffb] underline font-medium">${userLinks}</a>` : "";
+        }
+
+        function uploadAvatar(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const r = new FileReader(); r.onload = function(e) {
+                customAvatarBase64 = e.target.result;
+                const mu = usersDB.find(u => u.username === currentUser); if(mu) { mu.avatar = customAvatarBase64; localStorage.setItem('sensu_users_db_v3', JSON.stringify(usersDB)); }
+                applyAvatarUI();
+            }; r.readAsDataURL(file);
+        }
+
+        function applyAvatarUI() {
+            const pBox = document.getElementById('avatar-placeholder'); const img = document.getElementById('avatar-img');
+            const mTxt = document.getElementById('menu-avatar-txt'); const mImg = document.getElementById('menu-avatar-img');
+            
+            if(customAvatarBase64) { 
+                pBox.classList.add('hidden'); img.classList.remove('hidden'); img.src = customAvatarBase64; 
+                mTxt.classList.add('hidden'); mImg.classList.remove('hidden'); mImg.src = customAvatarBase64;
+            } else { 
+                pBox.classList.remove('hidden'); img.classList.add('hidden'); pBox.innerText = currentUser ? currentUser.charAt(0).toUpperCase() : "U"; 
+                mTxt.classList.remove('hidden'); mImg.classList.add('hidden'); mTxt.innerText = currentUser ? currentUser.charAt(0).toUpperCase() : "U";
+            }
+        }
+
+        function switchProfileSubTab(subId) {
+            document.querySelectorAll('.profile-sub-zone').forEach(z => z.classList.add('hidden'));
+            const azone = document.getElementById(`sub-tab-${subId}`); if(azone) azone.classList.remove('hidden');
+            document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('border-b-2', 'border-[#b19ffb]', 'text-custom-title', 'font-black'));
+            document.getElementById(`sub-btn-${subId}`).classList.add('border-b-2', 'border-[#b19ffb]', 'text-custom-title', 'font-black');
+        }
+
+        function switchViewProfileSubTab(subId) {
+            document.querySelectorAll('.view-profile-sub-zone').forEach(z => z.classList.add('hidden'));
+            const azone = document.getElementById(`view-sub-tab-${subId}`); if(azone) azone.classList.remove('hidden');
+            document.querySelectorAll('.view-sub-tab-btn').forEach(b => b.classList.remove('border-b-2', 'border-[#b19ffb]', 'text-custom-title', 'font-black'));
+            document.getElementById(`view-sub-btn-${subId}`).classList.add('border-b-2', 'border-[#b19ffb]', 'text-custom-title', 'font-black');
+        }
+
+        function searchUsers(q) {
+            const res = document.getElementById('users-search-results'); res.innerHTML = "";
+            const filtered = usersDB.filter(u => u.username.toLowerCase().includes(q.toLowerCase()));
+            filtered.forEach(u => {
+                res.innerHTML += `
+                <div class="custom-card border p-3.5 rounded-xl flex justify-between items-center text-xs">
+                    <span class="font-bold text-custom-title">👤 ${u.username} ${u.username === currentUser ? '(Ви)' : ''}</span>
+                    <button onclick="viewUserProfile('${u.username}')" class="custom-input border px-4 py-1.5 rounded-xl hover:border-[#b19ffb] font-semibold">Дивитись</button>
+                </div>`;
+            });
+        }
+
+        function viewUserProfile(un) {
+            if(un === currentUser) return switchTab('profile');
+            const u = usersDB.find(usr => usr.username === un); if(!u) return;
+            
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.getElementById('tab-view-profile').classList.remove('hidden');
+            document.getElementById('view-username').innerText = u.username;
+            document.getElementById('view-bio-text').innerText = u.bio || "Опис профілю відсутній";
+            
+            const vTrack = document.getElementById('view-track-status');
+            if(u.track) { vTrack.innerHTML = `🎧 Статус: ${u.track}`; vTrack.classList.remove('hidden'); } else { vTrack.classList.add('hidden'); }
+            document.getElementById('view-links-text').innerHTML = u.links ? `<a href="${u.links}" target="_blank">${u.links}</a>` : "";
+            
+            const pBox = document.getElementById('view-avatar-placeholder'); const img = document.getElementById('view-avatar-img');
+            if(u.avatar) { pBox.classList.add('hidden'); img.classList.remove('hidden'); img.src = u.avatar; } 
+            else { pBox.classList.remove('hidden'); img.classList.add('hidden'); pBox.innerText = u.username.charAt(0).toUpperCase(); }
+            
+            const followBtn = document.getElementById('view-follow-btn');
+            if(!u.followers) u.followers = [];
+            const isFollowing = u.followers.includes(currentUser);
+            
+            if(isFollowing) {
+                followBtn.innerText = "Відписатися";
+                followBtn.className = "text-xs font-black bg-zinc-800 text-red-400 border border-red-500/20 px-4 py-2 rounded-xl hover:bg-zinc-700";
+                followBtn.onclick = function() { toggleFollow(u.username, false); };
+            } else {
+                followBtn.innerText = "Підписатися";
+                followBtn.className = "text-xs font-black bg-[#b19ffb] text-black px-4 py-2 rounded-xl hover:scale-105 transition";
+                followBtn.onclick = function() { toggleFollow(u.username, true); };
+            }
+            
+            document.getElementById('view-following-count').innerText = u.following ? u.following.length : 0;
+            document.getElementById('view-followers-count').innerText = u.followers.length;
+            document.getElementById('view-likes-count').innerText = u.likesCount || 0;
+            
+            switchViewProfileSubTab('posts');
+            renderViewProfileSubTabs(un);
+        }
+
+        function toggleFollow(targetUsername, status) {
+            const targetUser = usersDB.find(u => u.username === targetUsername);
+            const myUser = usersDB.find(u => u.username === currentUser);
+            if(!targetUser || !myUser) return;
+            
+            if(!targetUser.followers) targetUser.followers = [];
+            if(!myUser.following) myUser.following = [];
+
+            if(status) {
+                if(!targetUser.followers.includes(currentUser)) targetUser.followers.push(currentUser);
+                if(!myUser.following.includes(targetUsername)) myUser.following.push(targetUsername);
+            } else {
+                targetUser.followers = targetUser.followers.filter(u => u !== currentUser);
+                myUser.following = myUser.following.filter(u => u !== targetUsername);
+            }
+            localStorage.setItem('sensu_users_db_v3', JSON.stringify(usersDB));
+            viewUserProfile(targetUsername);
+            updateCounters();
+        }
+
+        function updateCounters() {
+            const myUser = usersDB.find(u => u.username === currentUser);
+            if(myUser) {
+                if(!myUser.following) myUser.following = [];
+                if(!myUser.followers) myUser.followers = [];
+                document.getElementById('my-following-count').innerText = myUser.following.length;
+                document.getElementById('my-followers-count').innerText = myUser.followers.length;
+                document.getElementById('my-likes-count').innerText = myUser.likesCount || 0;
+            }
+        }
+
+        function openConnectionsModal(type, mode) {
+            let username = (type === 'my') ? currentUser : document.getElementById('view-username').innerText;
+            const targetUser = usersDB.find(u => u.username === username);
+            if (!targetUser) return;
+
+            const listData = (mode === 'followers') ? (targetUser.followers || []) : (targetUser.following || []);
+            
+            const modal = document.getElementById('connections-modal');
+            const mTitle = document.getElementById('modal-conn-title');
+            const mList = document.getElementById('modal-conn-list');
+
+            mTitle.innerText = mode === 'followers' ? "Підписники" : "Підписки";
+            mList.innerHTML = "";
+
+            if (listData.length === 0) {
+                mList.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-4">Список порожній</p>`;
+            } else {
+                listData.forEach(name => {
+                    mList.innerHTML += `
+                    <div class="flex justify-between items-center p-2 custom-input border rounded-xl text-xs">
+                        <span class="font-bold text-custom-title">👤 ${name}</span>
+                        <button onclick="goToProfileFromModal('${name}')" class="bg-[#b19ffb] text-black text-[10px] font-black px-2.5 py-1 rounded-lg">Профіль</button>
+                    </div>`;
+                });
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeConnectionsModal() { document.getElementById('connections-modal').classList.add('hidden'); }
+
+        function goToProfileFromModal(name) {
+            closeConnectionsModal();
+            viewUserProfile(name);
+        }
+
+        function globalMovieSearch(q) {}
+        function globalMusicSearch(q) {}
+        function globalBookSearch(q) {}
+    </script>
+</body>
+</html>
