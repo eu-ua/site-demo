@@ -1,42 +1,11 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>Sensu Space</title>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <title>Тест</title>
 </head>
-<body>
-    <h1 style="color: white;">Sensu Space</h1>
-    <input id="post-text" placeholder="Що нового?">
-    <button onclick="sendPost()">Опублікувати</button>
-    <div id="feed"></div>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyCq9Y0IF9-qPfwBJ18mjaHd-rN_x47_Dhg",
-            authDomain: "site-demo-sensu.firebaseapp.com",
-            projectId: "site-demo-sensu",
-            storageBucket: "site-demo-sensu.firebasestorage.app",
-            messagingSenderId: "187954134124",
-            appId: "1:187954134124:web:80e9f0aa41a9c3ae7aec49"
-        };
-
-        // Ініціалізація
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
-        function sendPost() {
-            const txt = document.getElementById('post-text').value;
-            db.collection("posts").add({ text: txt, time: Date.now() });
-        }
-
-        db.collection("posts").orderBy("time", "desc").onSnapshot(snapshot => {
-            document.getElementById('feed').innerHTML = "";
-            snapshot.forEach(doc => {
-                document.getElementById('feed').innerHTML += `<p style="color:white;">${doc.data().text}</p>`;
-            });
-        });
-    </script>
+<body style="background-color: black; color: white;">
+    <h1>САЙТ ПРАЦЮЄ</h1>
+    <p>Якщо ти бачиш цей текст, значить проблема була в дизайні або помилках у HTML.</p>
 </body>
 </html>
