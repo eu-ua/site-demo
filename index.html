@@ -1,11 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Тест</title>
+    <title>Sensu Space</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
-<body style="background-color: black; color: white;">
-    <h1>САЙТ ПРАЦЮЄ</h1>
-    <p>Якщо ти бачиш цей текст, значить проблема була в дизайні або помилках у HTML.</p>
+<body style="background-color: #060609; color: white; font-family: sans-serif; padding: 20px;">
+
+    <h1>Sensu Space</h1>
+    
+    <input id="post-text" placeholder="Що нового?" style="padding: 10px; width: 250px; border-radius: 8px; color: black;">
+    <button onclick="sendPost()" style="padding: 10px; cursor: pointer; color: black;">Надіслати</button>
+    
+    <div id="feed" style="margin-top: 20px;"></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCq9Y0IF9-qPfwBJ18mjaHd-rN_x47_Dhg",
+            authDomain: "site-demo-sensu.firebaseapp.com",
+            projectId: "site-demo-sensu",
+            storageBucket: "site-demo-sensu.firebasestorage.app",
+            messagingSenderId: "187954134124",
+            appId: "1:187954134124:web:80e9f0aa41a9c3ae7aec49"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        function sendPost() {
+            const input = document.getElementById('post-text');
+            if(!input.value) return;
+            
+            db.collection("posts").add({
+                text: input.value,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            input.value = "";
+        }
+
+        db.collection("posts").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = "";
+            snapshot.forEach(doc => {
+                const p = document.createElement("div");
+                // ТУТ ми зробили фон світлим, а текст чорним:
+                p.style.backgroundColor = "#f0f0f0";
+                p.style.color = "black"; 
+                p.style.padding = "10px";
+                p.style.marginTop = "10px";
+                p.style.borderRadius = "8px";
+                p.innerText = doc.data().text;
+                feed.appendChild(p);
+            });
+        });
+    </script>
 </body>
 </html>
