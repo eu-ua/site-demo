@@ -12,24 +12,22 @@
 <body class="bg-[#060609] text-white font-sans p-4">
 
     <div id="auth-screen" class="max-w-sm mx-auto mt-20 p-6 border border-purple-500/20 rounded-xl bg-[#13131c]">
-        <h2 class="text-xl font-bold mb-4">Вхід / Реєстрація</h2>
-        <input id="email" type="email" placeholder="Email" class="w-full p-2 mb-2 bg-black rounded text-white border border-gray-700">
-        <input id="pass" type="password" placeholder="Пароль" class="w-full p-2 mb-4 bg-black rounded text-white border border-gray-700">
-        <button onclick="login()" class="w-full bg-purple-600 hover:bg-purple-500 p-2 rounded font-bold transition">Увійти / Створити</button>
+        <h2 class="text-xl font-bold mb-4 text-purple-400">Вхід до Sensu</h2>
+        <input id="username" placeholder="Твій нікнейм" class="w-full p-2 mb-2 bg-black rounded border border-gray-700">
+        <input id="pass" type="password" placeholder="Пароль" class="w-full p-2 mb-4 bg-black rounded border border-gray-700">
+        <button onclick="login()" class="w-full bg-purple-600 hover:bg-purple-500 p-2 rounded font-bold transition">Увійти / Зареєструватися</button>
     </div>
 
     <div id="chat-screen" class="hidden max-w-2xl mx-auto">
         <h1 class="text-2xl font-bold mb-4 text-purple-400">Sensu Space</h1>
-        <div id="feed" class="h-96 overflow-y-auto bg-[#13131c] p-4 rounded-xl mb-4 border border-purple-500/20 shadow-lg"></div>
+        <div id="feed" class="h-96 overflow-y-auto bg-[#13131c] p-4 rounded-xl mb-4 border border-purple-500/20"></div>
         <div class="flex gap-2">
-            <input id="msg" class="flex-1 p-2 bg-[#13131c] rounded border border-purple-500/20 text-white" placeholder="Повідомлення...">
-            <button onclick="sendMsg()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded transition">➤</button>
+            <input id="msg" class="flex-1 p-2 bg-[#13131c] rounded border border-purple-500/20" placeholder="Повідомлення...">
+            <button onclick="sendMsg()" class="bg-purple-600 px-4 py-2 rounded">➤</button>
         </div>
-        <button onclick="firebase.auth().signOut()" class="mt-4 text-sm text-gray-500 hover:text-white">Вийти</button>
     </div>
 
     <script>
-        // Твій конфіг, вставлений автоматично
         const firebaseConfig = {
             apiKey: "AIzaSyCq9Y0IF9-qPfwBJ18mjaHd-rN_x47_Dhg",
             authDomain: "site-demo-sensu.firebaseapp.com",
@@ -43,45 +41,43 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // Логіка входу
         function login() {
-            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value;
             const pass = document.getElementById('pass').value;
+            // Перетворюємо нікнейм у фіктивний email
+            const email = username + "@sensu.chat";
+            
             auth.createUserWithEmailAndPassword(email, pass)
                 .catch(() => auth.signInWithEmailAndPassword(email, pass))
                 .catch(err => alert("Помилка: " + err.message));
         }
 
-        // Перемикання екранів
         auth.onAuthStateChanged(user => {
             if(user) {
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('chat-screen').classList.remove('hidden');
-            } else {
-                document.getElementById('auth-screen').classList.remove('hidden');
-                document.getElementById('chat-screen').classList.add('hidden');
             }
         });
 
-        // Відправка
         function sendMsg() {
-            const text = document.getElementById('msg').value;
-            if(!text) return;
+            const msg = document.getElementById('msg');
+            if(!msg.value) return;
+            // Дістаємо нікнейм з email
+            const nickname = auth.currentUser.email.split('@')[0];
             db.collection("chat").add({ 
-                text: text, 
-                user: auth.currentUser.email, 
+                text: msg.value, 
+                user: nickname, 
                 time: firebase.firestore.FieldValue.serverTimestamp() 
             });
-            document.getElementById('msg').value = "";
+            msg.value = "";
         }
 
-        // Оновлення чату
         db.collection("chat").orderBy("time").onSnapshot(snap => {
             const feed = document.getElementById('feed');
             feed.innerHTML = "";
             snap.forEach(doc => {
                 const data = doc.data();
-                feed.innerHTML += `<div class="mb-3"><b class="text-purple-400">${data.user}:</b> ${data.text}</div>`;
+                feed.innerHTML += `<div class="mb-2"><b class="text-purple-400">${data.user}:</b> ${data.text}</div>`;
             });
             feed.scrollTop = feed.scrollHeight;
         });
