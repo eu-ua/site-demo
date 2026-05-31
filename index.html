@@ -2,20 +2,34 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Sensu Space</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensu Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
-<body style="background-color: #060609; color: white; font-family: sans-serif; padding: 20px;">
+<body class="bg-[#060609] text-white font-sans p-4">
 
-    <h1>Sensu Space</h1>
-    
-    <input id="post-text" placeholder="Що нового?" style="padding: 10px; width: 250px; border-radius: 8px; color: black;">
-    <button onclick="sendPost()" style="padding: 10px; cursor: pointer; color: black;">Надіслати</button>
-    
-    <div id="feed" style="margin-top: 20px;"></div>
+    <div id="auth-screen" class="max-w-sm mx-auto mt-20 p-6 border border-purple-500/20 rounded-xl bg-[#13131c]">
+        <h2 class="text-xl font-bold mb-4">Вхід / Реєстрація</h2>
+        <input id="email" type="email" placeholder="Email" class="w-full p-2 mb-2 bg-black rounded text-white border border-gray-700">
+        <input id="pass" type="password" placeholder="Пароль" class="w-full p-2 mb-4 bg-black rounded text-white border border-gray-700">
+        <button onclick="login()" class="w-full bg-purple-600 hover:bg-purple-500 p-2 rounded font-bold transition">Увійти / Створити</button>
+    </div>
+
+    <div id="chat-screen" class="hidden max-w-2xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4 text-purple-400">Sensu Space</h1>
+        <div id="feed" class="h-96 overflow-y-auto bg-[#13131c] p-4 rounded-xl mb-4 border border-purple-500/20 shadow-lg"></div>
+        <div class="flex gap-2">
+            <input id="msg" class="flex-1 p-2 bg-[#13131c] rounded border border-purple-500/20 text-white" placeholder="Повідомлення...">
+            <button onclick="sendMsg()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded transition">➤</button>
+        </div>
+        <button onclick="firebase.auth().signOut()" class="mt-4 text-sm text-gray-500 hover:text-white">Вийти</button>
+    </div>
 
     <script>
+        // Твій конфіг, вставлений автоматично
         const firebaseConfig = {
             apiKey: "AIzaSyCq9Y0IF9-qPfwBJ18mjaHd-rN_x47_Dhg",
             authDomain: "site-demo-sensu.firebaseapp.com",
@@ -26,33 +40,50 @@
         };
 
         firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
         const db = firebase.firestore();
 
-        function sendPost() {
-            const input = document.getElementById('post-text');
-            if(!input.value) return;
-            
-            db.collection("posts").add({
-                text: input.value,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            input.value = "";
+        // Логіка входу
+        function login() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('pass').value;
+            auth.createUserWithEmailAndPassword(email, pass)
+                .catch(() => auth.signInWithEmailAndPassword(email, pass))
+                .catch(err => alert("Помилка: " + err.message));
         }
 
-        db.collection("posts").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+        // Перемикання екранів
+        auth.onAuthStateChanged(user => {
+            if(user) {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('chat-screen').classList.remove('hidden');
+            } else {
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('chat-screen').classList.add('hidden');
+            }
+        });
+
+        // Відправка
+        function sendMsg() {
+            const text = document.getElementById('msg').value;
+            if(!text) return;
+            db.collection("chat").add({ 
+                text: text, 
+                user: auth.currentUser.email, 
+                time: firebase.firestore.FieldValue.serverTimestamp() 
+            });
+            document.getElementById('msg').value = "";
+        }
+
+        // Оновлення чату
+        db.collection("chat").orderBy("time").onSnapshot(snap => {
             const feed = document.getElementById('feed');
             feed.innerHTML = "";
-            snapshot.forEach(doc => {
-                const p = document.createElement("div");
-                // ТУТ ми зробили фон світлим, а текст чорним:
-                p.style.backgroundColor = "#f0f0f0";
-                p.style.color = "black"; 
-                p.style.padding = "10px";
-                p.style.marginTop = "10px";
-                p.style.borderRadius = "8px";
-                p.innerText = doc.data().text;
-                feed.appendChild(p);
+            snap.forEach(doc => {
+                const data = doc.data();
+                feed.innerHTML += `<div class="mb-3"><b class="text-purple-400">${data.user}:</b> ${data.text}</div>`;
             });
+            feed.scrollTop = feed.scrollHeight;
         });
     </script>
 </body>
