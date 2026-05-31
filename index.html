@@ -349,9 +349,20 @@ let currentUser = localStorage.getItem('currentUser') || null;
 let isLoginMode = false;
 
 // Оновлені бази даних
-let postsDB = JSON.parse(localStorage.getItem('sensu_posts_db_v5')) || [];
-let usersDB = JSON.parse(localStorage.getItem('sensu_users_db_v4')) || [];
-let messagesDB = JSON.parse(localStorage.getItem('sensu_messages_db')) || [];
+// Порожні масиви для початку
+let messagesDB = []; 
+
+// СЛУХАЧ (Listener) — він буде оновлювати чат автоматично
+db.collection("messages").orderBy("timestamp", "asc")
+    .onSnapshot((snapshot) => {
+        messagesDB = []; // Очищаємо перед оновленням
+        snapshot.forEach((doc) => {
+            messagesDB.push(doc.data());
+        });
+        // Оновлюємо чат на екрані, якщо він відкритий
+        if(currentActiveChatUser) renderActiveChatMessages();
+    });
+
 let notificationsDB = JSON.parse(localStorage.getItem('sensu_notifications_db')) || [];
 let followsDB = JSON.parse(localStorage.getItem('sensu_follows_db')) || [];
 let tracksDB = JSON.parse(localStorage.getItem('sensu_tracks_db')) || []; // Нова БД для треків
@@ -992,9 +1003,24 @@ container.innerHTML = conversation.map(m => `<div class="flex ${m.sender === cur
 container.scrollTop = container.scrollHeight;
 }
 function sendChatMessage() {
-const inp = document.getElementById('chat-msg-input'); const txt = inp.value.trim(); if(!txt || !currentActiveChatUser) return;
-messagesDB.push({ timestamp: Date.now(), sender: currentUser, receiver: currentActiveChatUser, text: txt });
-localStorage.setItem('sensu_messages_db', JSON.stringify(messagesDB)); inp.value = ""; renderActiveChatMessages();
+    const inp = document.getElementById('chat-msg-input');
+    const txt = inp.value.trim();
+    if (!txt || !currentActiveChatUser) return;
+
+    // Відправляємо в Firebase
+    db.collection("messages").add({
+        text: txt,
+        sender: currentUser,
+        receiver: currentActiveChatUser,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(() => {
+        inp.value = ""; // Очищаємо поле
+    })
+    .catch((error) => {
+        console.error("Помилка відправки:", error);
+        alert("Помилка! Перевірте консоль.");
+    });
 }
 function toggleTheme() { const isLight = document.documentElement.classList.toggle('light-theme'); localStorage.setItem('sensu_theme', isLight ? 'light' : 'dark'); }
 function toggleNotificationsActive() { isNotificationsEnabled = !isNotificationsEnabled; localStorage.setItem('sensu_notif_enabled', isNotificationsEnabled); }
