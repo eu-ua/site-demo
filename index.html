@@ -1,632 +1,376 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Особистий Профіль - Online</title>
-<style>
-    /* Основні налаштування сторінки */
-    body {
-        margin: 0;
-        padding: 0;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #0f0f12;
-        color: #ffffff;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        min-height: 100vh;
-        padding-top: 40px;
-        padding-bottom: 40px;
-        box-sizing: border-box;
-        overflow-y: scroll;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensu Space</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
-    .profile-container {
-        width: 100%;
-        max-width: 850px;
-        background: #16161e;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-        margin: 0 auto;
-    }
-    
-    .banner-container {
-        width: 100%;
-        height: 220px;
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-    }
-    .banner-container img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: opacity 0.3s;
-    }
-    .banner-container:hover img {
-        opacity: 0.8;
-    }
-    
-    .profile-info-card {
-        padding: 24px;
-        background: linear-gradient(180deg, #1e1e28 0%, #16161e 100%);
-        border-bottom: 1px solid #2a2a35;
-    }
-    .profile-main-row {
-        display: flex;
-        align-items: center;
-        position: relative;
-        gap: 20px;
-    }
-    
-    .avatar-container {
-        width: 110px;
-        height: 110px;
-        border-radius: 50%;
-        overflow: hidden;
-        cursor: pointer;
-        border: 3px solid #16161e;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        flex-shrink: 0;
-    }
-    .avatar-container img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    .avatar-container:hover {
-        opacity: 0.85;
-    }
-    
-    .user-details {
-        flex-grow: 1;
-    }
-    
-    .user-details h2 {
-        margin: 0 0 4px 0;
-        font-size: 24px;
-        cursor: pointer;
-        display: inline-block;
-    }
-    .user-details h2:hover {
-        color: #a5a5b5;
-        text-decoration: underline;
-    }
-    
-    #profile-bio {
-        margin: 0 0 12px 0;
-        color: #b5b5c3;
-        font-size: 14px;
-    }
-    
-    .stats-row {
-        display: flex;
-        gap: 15px;
-        font-size: 14px;
-        color: #858593;
-    }
-    .stats-row span {
-        cursor: pointer;
-    }
-    .stats-row span:hover strong {
-        color: #3b82f6;
-    }
-    .stats-row strong {
-        color: #ffffff;
-    }
-    
-    .profile-actions {
-        display: flex;
-        gap: 10px;
-        align-self: center;
-    }
-    .btn {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s;
-        font-size: 14px;
-    }
-    
-    .btn-edit {
-        background-color: #2b2b36;
-        color: #ffffff;
-        border: 1px solid #3f3f52;
-    }
-    .btn-edit:hover {
-        background-color: #3f3f52;
-    }
-    
-    .btn-logout {
-        background-color: #7f1d1d;
-        color: #fca5a5;
-    }
-    .btn-logout:hover {
-        background-color: #991b1b;
-    }
-    .btn-save {
-        background-color: #2563eb;
-        color: #ffffff;
-        margin-top: 10px;
-    }
-    .btn-save:hover {
-        background-color: #1d4ed8;
-    }
-    .btn-upload {
-        background-color: #10b981;
-        color: white;
-        margin-bottom: 15px;
-    }
-    
-    .edit-panel {
-        display: none;
-        padding: 20px;
-        background: #1f1f2e;
-        border-bottom: 1px solid #2a2a35;
-    }
-    .form-group {
-        margin-bottom: 12px;
-    }
-    .form-group label {
-        display: block;
-        font-size: 12px;
-        color: #858593;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-    }
-    .form-group input, .form-group textarea {
-        width: 100%;
-        padding: 8px;
-        background: #111116;
-        border: 1px solid #2a2a35;
-        border-radius: 6px;
-        color: white;
-        box-sizing: border-box;
-    }
-    
-    .profile-tabs {
-        display: flex;
-        border-bottom: 1px solid #2a2a35;
-        background: #16161e;
-    }
-    .tab-btn {
-        background: none;
-        border: none;
-        color: #858593;
-        padding: 15px 20px;
-        font-size: 15px;
-        cursor: pointer;
-        font-weight: 500;
-        position: relative;
-    }
-    .tab-btn.active {
-        color: #ffffff;
-    }
-    .tab-btn.active::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 20px;
-        border-bottom: 2px solid white;
-    }
-    
-    .tab-content-container {
-        padding: 30px;
-        min-height: 150px;
-    }
-    .tab-panel {
-        display: none;
-    }
-    .tab-panel.active {
-        display: block;
-    }
-    .empty-message {
-        text-align: center;
-        color: #555566;
-        font-style: italic;
-    }
-    
-    .track-item {
-        background: #20202c;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .track-title {
-        font-weight: bold;
-        font-size: 14px;
-    }
-    audio {
-        width: 100%;
-        height: 32px;
-    }
-    
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 100;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.6);
-    }
-    .modal-content {
-        background-color: #16161e;
-        margin: 15% auto;
-        padding: 20px;
-        border: 1px solid #2a2a35;
-        width: 300px;
-        border-radius: 10px;
-        position: relative;
-    }
-    .close-modal-btn {
-        position: absolute;
-        right: 15px;
-        top: 10px;
-        font-size: 24px;
-        cursor: pointer;
-        color: #858593;
-    }
-    .users-list {
-        list-style: none;
-        padding: 0;
-    }
-    .users-list li {
-        padding: 8px 0;
-        border-bottom: 1px solid #2a2a35;
-    }
-    .users-list a {
-        color: #3b82f6;
-        text-decoration: none;
-    }
-</style>
-</head>
-<body>
+    <style>
+        :root {
+            --bg-main: #060609;
+            --bg-card: #13131c;
+            --bg-input: #0e0e15;
+            --border-color: rgba(177, 159, 251, 0.12);
+            --border-focus: rgba(177, 159, 251, 0.4);
+            --text-main: #e2e8f0;
+            --text-muted: #71717a;
+            --accent: #b19ffb;
+        }
 
-<div class="profile-container">
-    <div class="banner-container" onclick="document.getElementById('banner-input').click()">
-        <img id="profile-banner" src="https://via.placeholder.com/800x250/2c2c35/ffffff?text=Натисніть,+щоб+змінити+банер" alt="Банер">
-        <input type="file" id="banner-input" accept="image/*" style="display: none;" onchange="changeImage(event, 'profile-banner')">
-    </div>
-    <div class="profile-info-card">
-        <div class="profile-main-row">
-            <div class="avatar-container" onclick="document.getElementById('avatar-input').click()">
-                <img id="profile-avatar" src="https://via.placeholder.com/100" alt="Аватар">
-                <input type="file" id="avatar-input" accept="image/*" style="display: none;" onchange="changeImage(event, 'profile-avatar')">
+        .light-theme {
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-input: #f1f5f9;
+            --border-color: rgba(177, 159, 251, 0.2);
+            --border-focus: rgba(177, 159, 251, 0.6);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent: #7c3aed;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+
+        .galaxy-logo {
+            background: radial-gradient(circle, #b19ffb 0%, #06b6d4 60%, #050508 100%);
+            box-shadow: 0 0 15px rgba(177, 159, 251, 0.3);
+        }
+    </style>
+</head>
+<body class="font-sans min-h-screen flex flex-col">
+
+    <div id="auth-screen" class="flex-1 flex items-center justify-center p-4">
+        <div class="max-w-md w-full p-8 border rounded-2xl bg-[var(--bg-card)] border-[var(--border-color)] shadow-xl">
+            <div class="flex flex-col items-center mb-6">
+                <div class="w-16 h-16 rounded-full galaxy-logo mb-4 flex items-center justify-center text-xl font-bold text-white">S</div>
+                <h2 class="text-2xl font-bold text-purple-400">Вхід до Sensu Space</h2>
+                <p class="text-xs text-[var(--text-muted)] mt-1 text-center">Введіть нікнейм. Якщо акаунту немає, його буде створено автоматично.</p>
             </div>
-            <div class="user-details">
-                <h2 id="profile-nickname" onclick="editNicknameInline()">rgdvred</h2>
-                <p id="profile-bio">музика</p>
-                <div class="stats-row">
-                    <span onclick="openModal('followers-modal')"><strong id="count-followers">0</strong> підписників</span>
-                    <span onclick="openModal('following-modal')"><strong id="count-following">0</strong> підписок</span>
-                    <span><strong id="count-likes">2</strong> лайків</span>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold mb-1 text-[var(--text-muted)]">Ваш нікнейм</label>
+                    <input id="username-input" type="text" placeholder="Приклад: neo" class="w-full p-3 bg-[var(--bg-input)] rounded-xl border border-[var(--border-color)] focus:border-[var(--accent)] outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold mb-1 text-[var(--text-muted)]">Пароль (мін. 6 символів)</label>
+                    <input id="password-input" type="password" placeholder="••••••••" class="w-full p-3 bg-[var(--bg-input)] rounded-xl border border-[var(--border-color)] focus:border-[var(--accent)] outline-none text-sm">
+                </div>
+                <button onclick="handleAuth()" class="w-full bg-purple-600 hover:bg-purple-500 p-3 rounded-xl font-bold text-sm transition mt-2 shadow-lg shadow-purple-600/20 text-white">
+                    Увійти / Створити акаунт
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-screen" class="hidden flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto p-4 gap-4">
+        
+        <aside class="md:w-64 flex flex-col gap-4">
+            <div class="p-4 border rounded-2xl bg-[var(--bg-card)] border-[var(--border-color)] flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center font-bold text-purple-400" id="user-avatar">?</div>
+                    <div>
+                        <div class="font-bold text-sm truncate max-w-[120px]" id="user-display-name">Користувач</div>
+                        <div class="text-[var(--text-muted)] text-xs">Sensu Citizen</div>
+                    </div>
+                </div>
+                <button onclick="toggleTheme()" class="p-2 rounded-xl bg-[var(--bg-input)] hover:opacity-80 text-xs">🌓</button>
+            </div>
+
+            <nav class="p-2 border rounded-2xl bg-[var(--bg-card)] border-[var(--border-color)] flex flex-row md:flex-col gap-1">
+                <button onclick="switchTab('feed')" id="tab-btn-feed" class="flex-1 md:flex-initial text-left px-4 py-3 rounded-xl font-medium text-sm bg-purple-600/10 text-purple-400 transition">🪐 Стрічка</button>
+                <button onclick="switchTab('chat')" id="tab-btn-chat" class="flex-1 md:flex-initial text-left px-4 py-3 rounded-xl font-medium text-sm text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition">💬 Повідомлення</button>
+                <button onclick="logout()" class="hidden md:block text-left px-4 py-3 rounded-xl font-medium text-sm text-red-400 hover:bg-red-500/10 transition mt-auto">🚪 Вийти</button>
+            </nav>
+            <button onclick="logout()" class="md:hidden w-full px-4 py-3 border border-red-500/20 rounded-xl font-medium text-sm text-red-400 bg-[var(--bg-card)]">🚪 Вийти</button>
+        </aside>
+
+        <main class="flex-1 flex flex-col min-h-[500px]">
+            
+            <div id="tab-feed" class="flex flex-col gap-4 flex-1">
+                <div class="p-4 border rounded-2xl bg-[var(--bg-card)] border-[var(--border-color)] flex flex-col gap-3">
+                    <textarea id="post-input" placeholder="Що нового у вашому всесвіті?" rows="3" class="w-full p-3 bg-[var(--bg-input)] rounded-xl border border-[var(--border-color)] focus:border-[var(--accent)] outline-none text-sm resize-none"></textarea>
+                    <div class="flex justify-end">
+                        <button onclick="createPost()" class="bg-purple-600 hover:bg-purple-500 text-white px-5 py-2 rounded-xl font-bold text-sm transition">Опублікувати</button>
+                    </div>
+                </div>
+                <div id="posts-container" class="space-y-4">
+                    </div>
+            </div>
+
+            <div id="tab-chat" class="hidden flex-1 border rounded-2xl bg-[var(--bg-card)] border-[var(--border-color)] flex flex-col h-[calc(100vh-120px)] md:h-[650px] overflow-hidden">
+                <div class="flex flex-1 h-full">
+                    <div class="w-1/3 border-r border-[var(--border-color)] flex flex-col">
+                        <div class="p-3 border-b border-[var(--border-color)] font-bold text-xs tracking-wider text-[var(--text-muted)] uppercase">Співрозмовники</div>
+                        <div id="users-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                            </div>
+                    </div>
+                    <div id="chat-window" class="w-2/3 flex flex-col bg-[var(--bg-input)]/30">
+                        <div id="chat-header" class="p-4 border-b border-[var(--border-color)] font-bold text-sm text-purple-400 bg-[var(--bg-card)]">
+                            Оберіть чат для початку спілкування
+                        </div>
+                        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
+                            </div>
+                        <div id="chat-footer" class="p-3 bg-[var(--bg-card)] border-t border-[var(--border-color)] hidden flex gap-2">
+                            <input id="chat-msg-input" type="text" placeholder="Напишіть повідомлення..." class="flex-1 p-2.5 bg-[var(--bg-input)] rounded-xl border border-[var(--border-color)] focus:border-[var(--accent)] outline-none text-sm">
+                            <button onclick="sendChatMessage()" class="bg-purple-600 text-white px-4 rounded-xl font-bold hover:bg-purple-500 transition">➤</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="profile-actions">
-                <button class="btn btn-edit" onclick="toggleEditPanel()">Редагувати</button>
-                <button class="btn btn-logout" onclick="logout()">Вийти</button>
-            </div>
-        </div>
+
+        </main>
     </div>
-    <div id="edit-panel" class="edit-panel">
-        <h3>Редагування профілю</h3>
-        <div class="form-group">
-            <label>Нікнейм:</label>
-            <input type="text" id="edit-nickname-input">
-        </div>
-        <div class="form-group">
-            <label>Про себе:</label>
-            <textarea id="edit-bio-input" rows="2"></textarea>
-        </div>
-        <div class="form-group">
-            <label>Посилання на соц. мережу:</label>
-            <input type="url" id="edit-social-input" placeholder="https://instagram.com/username">
-        </div>
-        <button class="btn btn-save" onclick="saveProfileChanges()">Зберегти зміни</button>
-    </div>
-    <div class="profile-tabs">
-        <button class="tab-btn active" onclick="switchTab('publications')">Публикації</button>
-        <button class="tab-btn" onclick="switchTab('reposts')">Репости</button>
-        <button id="tab-tracks-btn" class="tab-btn" onclick="switchTab('tracks')" style="display: none;">Мої Треки</button>
-    </div>
-    <div class="tab-content-container">
-        <div id="tab-publications" class="tab-panel active">
-            <p class="empty-message">Немає особистих публікацій</p>
-        </div>
-        <div id="tab-reposts" class="tab-panel">
-            <p class="empty-message">Немає репостів</p>
-        </div>
-        <div id="tab-tracks" class="tab-panel">
-            <div class="upload-track-zone">
-                <button class="btn btn-upload" onclick="document.getElementById('track-input').click()">Завантажити новий трек</button>
-                <input type="file" id="track-input" accept="audio/*" style="display: none;" onchange="uploadTrack(event)">
-            </div>
-            <div id="tracks-list"></div>
-        </div>
-    </div>
-</div>
 
-<div id="followers-modal" class="modal" onclick="closeModal(event, 'followers-modal')">
-    <div class="modal-content">
-        <span class="close-modal-btn" onclick="document.getElementById('followers-modal').style.display='none'">&times;</span>
-        <h3>Підписники</h3>
-        <ul class="users-list">
-            <li><a href="#" onclick="alert('Перехід на профіль користувача user1')">@user1_music</a></li>
-            <li><a href="#" onclick="alert('Перехід на профіль користувача user2')">@singer_ua</a></li>
-        </ul>
-    </div>
-</div>
-
-<div id="following-modal" class="modal" onclick="closeModal(event, 'following-modal')">
-    <div class="modal-content">
-        <span class="close-modal-btn" onclick="document.getElementById('following-modal').style.display='none'">&times;</span>
-        <h3>Підписки</h3>
-        <ul class="users-list">
-            <li><a href="#" onclick="alert('Перехід на профіль користувача artist_x')">@artist_x</a></li>
-        </ul>
-    </div>
-</div>
-
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-<script>
-// ==========================================
-// 1. НАЛАШТУВАННЯ ТА ІНІЦІАЛІЗАЦІЯ FIREBASE
-// ==========================================
-const firebaseConfig = {
-    apiKey: "ТВІЙ_API_KEY", // <--- ОБОВ'ЯЗКОВО ВСТАВТЕ СВІЙ КЛЮЧ
-    authDomain: "site-demo-sensu.firebaseapp.com",
-    projectId: "site-demo-sensu",
-    storageBucket: "site-demo-sensu.firebasestorage.app",
-    messagingSenderId: "187954134124",
-    appId: "1:187954134124:web:80e9f0aa41a9c3ae7aec49"
-};
-
-// Ініціалізуємо Firebase хмару
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// Імітуємо поточного користувача. 
-const currentUser = "user_rgdvred"; 
-
-// ==========================================
-// 2. ЖИВІ СЛУХАЧІ (СИНХРОНІЗАЦІЯ В РЕАЛЬНОМУ ЧАСІ)
-// ==========================================
-
-window.onload = function() {
-    initRealTimeListeners();
-};
-
-function initRealTimeListeners() {
-    // А) Слухаємо зміни профілю в реальному часі
-    db.collection("users").doc(currentUser).onSnapshot((doc) => {
-        if (doc.exists) {
-            const data = doc.data();
-            
-            // Оновлюємо інтерфейс актуальними даними з хмари
-            if (data.nickname) {
-                document.getElementById('profile-nickname').innerText = data.nickname;
-                document.getElementById('edit-nickname-input').value = data.nickname;
-            }
-            if (data.bio !== undefined) {
-                document.getElementById('profile-bio').innerText = data.bio;
-                document.getElementById('edit-bio-input').value = data.bio;
-            }
-            if (data.social !== undefined) {
-                document.getElementById('edit-social-input').value = data.social;
-            }
-            if (data.avatar) {
-                document.getElementById('profile-avatar').src = data.avatar;
-            }
-            if (data.banner) {
-                document.getElementById('profile-banner').src = data.banner;
-            }
-            if (data.followersCount !== undefined) {
-                document.getElementById('count-followers').innerText = data.followersCount;
-            }
-            if (data.followingCount !== undefined) {
-                document.getElementById('count-following').innerText = data.followingCount;
-            }
-            
-            checkBioForMusicKeywords();
-        } else {
-            // Якщо користувача ще немає в базі — створюємо для нього початковий профіль
-            db.collection("users").doc(currentUser).set({
-                nickname: "rgdvred",
-                bio: "музика це життя",
-                social: "",
-                followersCount: "2",
-                followingCount: "1"
-            });
-        }
-    }, (error) => console.error("Помилка слухача профілю:", error));
-
-    // Б) Слухаємо додавання треків у реальному часі
-    db.collection("tracks")
-        .where("author", "==", currentUser)
-        .onSnapshot((snapshot) => {
-            const tracksList = document.getElementById('tracks-list');
-            tracksList.innerHTML = ""; // Очищаємо список перед оновленням
-
-            let tracksArray = [];
-            snapshot.forEach((doc) => {
-                tracksArray.push(doc.data());
-            });
-            
-            // Сортуємо треки, щоб нові були зверху
-            tracksArray.sort((a, b) => b.createdAt - a.createdAt);
-
-            // Рендеримо кожен трек із бази даних
-            tracksArray.forEach((trackData) => {
-                const trackItem = document.createElement('div');
-                trackItem.className = 'track-item';
-
-                const trackTitle = document.createElement('div');
-                trackTitle.className = 'track-title';
-                trackTitle.innerText = trackData.name;
-
-                const audioPlayer = document.createElement('audio');
-                audioPlayer.controls = true;
-                audioPlayer.src = trackData.audioUrl;
-
-                trackItem.appendChild(trackTitle);
-                trackItem.appendChild(audioPlayer);
-                tracksList.appendChild(trackItem);
-            });
-        }, (error) => console.error("Помилка слухача треків:", error));
-}
-
-// ==========================================
-// 3. ПЕРЕРОБЛЕНІ ФУНКЦІЇ ДЛЯ ВІДПРАВКИ В ХМАРУ
-// ==========================================
-
-function changeImage(event, elementId) {
-    const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const base64Data = e.target.result;
-            const updateData = {};
-            
-            if (elementId === 'profile-avatar') {
-                updateData.avatar = base64Data;
-            } else if (elementId === 'profile-banner') {
-                updateData.banner = base64Data;
-            }
-
-            db.collection("users").doc(currentUser).update(updateData)
-                .catch(err => console.error("Помилка збереження фото:", err));
+    <script>
+        // КОНФІГУРАЦІЯ FIREBASE (ЗАМІНІТЬ НА ВЛАСНУ З КОНСОЛІ FIREBASE)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCq9Y0IF9-qPfwBJ18mjaHd-rN_x47_Dhg",
+            authDomain: "site-demo-sensu.firebaseapp.com",
+            projectId: "site-demo-sensu",
+            storageBucket: "site-demo-sensu.firebasestorage.app",
+            messagingSenderId: "187954134124",
+            appId: "1:187954134124:web:80e9f0aa41a9c3ae7aec49"
         };
-        reader.readAsDataURL(file);
-    }
-}
 
-function editNicknameInline() {
-    const nickElem = document.getElementById('profile-nickname');
-    const currentNick = nickElem.innerText;
-    const newNick = prompt("Введіть новий нікнейм:", currentNick);
-    if (newNick && newNick.trim() !== "") {
-        db.collection("users").doc(currentUser).update({
-            nickname: newNick.trim()
-        }).catch(err => console.error("Помилка зміни нікнейму:", err));
-    }
-}
+        // Ініціалізація
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-function saveProfileChanges() {
-    const newNick = document.getElementById('edit-nickname-input').value;
-    const newBio = document.getElementById('edit-bio-input').value;
-    const socialLink = document.getElementById('edit-social-input').value;
+        let currentUser = null;
+        let currentActiveChatUser = null;
+        let activeTab = 'feed';
 
-    if (newNick.trim() === "") {
-        alert("Нікнейм не може бути порожнім!");
-        return;
-    }
-
-    db.collection("users").doc(currentUser).update({
-        nickname: newNick.trim(),
-        bio: newBio,
-        social: socialLink.trim()
-    }).then(() => {
-        if (socialLink.trim() !== "") {
-            console.log("Додано лінк соцмережі: " + socialLink);
-        }
-        document.getElementById('edit-panel').style.display = 'none';
-    }).catch(err => console.error("Помилка збереження даних:", err));
-}
-
-function uploadTrack(event) {
-    const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const base64Audio = e.target.result;
+        // АВТЕНТИФІКАЦІЯ
+        function handleAuth() {
+            const username = document.getElementById('username-input').value.trim();
+            const pass = document.getElementById('password-input').value;
             
-            db.collection("tracks").add({
+            if (!username || pass.length < 6) {
+                alert("Будь ласка, введіть коректний нікнейм та пароль (мінімум 6 символів).");
+                return;
+            }
+
+            const email = username.toLowerCase() + "@sensu.chat";
+
+            // Спроба реєстрації, якщо користувач новий. Якщо існує — вхід.
+            auth.createUserWithEmailAndPassword(email, pass)
+                .then((userCredential) => {
+                    // Зберігаємо нікнейм користувача у системну колекцію для списку чатів
+                    db.collection("users").doc(username.toLowerCase()).set({
+                        username: username.toLowerCase(),
+                        lastActive: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                })
+                .catch(() => auth.signInWithEmailAndPassword(email, pass))
+                .catch(err => alert("Помилка авторизації: " + err.message));
+        }
+
+        function logout() {
+            auth.signOut();
+        }
+
+        // Стеження за станом сесії
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user.email.split('@')[0];
+                document.getElementById('user-display-name').innerText = currentUser;
+                document.getElementById('user-avatar').innerText = currentUser.substring(0, 2).toUpperCase();
+                
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                
+                // Оновлення статусу в базі
+                db.collection("users").doc(currentUser).set({
+                    username: currentUser,
+                    lastActive: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                initRealtimeSync();
+            } else {
+                currentUser = null;
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('app-screen').classList.add('hidden');
+            }
+        });
+
+        // НАВІГАЦІЯ МІЖ ВКЛАДКАМИ
+        function switchTab(tab) {
+            activeTab = tab;
+            if (tab === 'feed') {
+                document.getElementById('tab-feed').classList.remove('hidden');
+                document.getElementById('tab-chat').classList.add('hidden');
+                document.getElementById('tab-btn-feed').className = "flex-1 md:flex-initial text-left px-4 py-3 rounded-xl font-medium text-sm bg-purple-600/10 text-purple-400 transition";
+                document.getElementById('tab-btn-chat').className = "flex-1 md:flex-initial text-left px-4 py-3 rounded-xl font-medium text-sm text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition";
+            } else {
+                document.getElementById('tab-feed').classList.add('hidden');
+                document.getElementById('tab-chat').classList.remove('hidden');
+                document.getElementById('tab-btn-feed').className = "flex-1 md:flex-initial text-left px-4 py-3 rounded-xl font-medium text-sm text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition";
+                document.getElementById('tab-btn-chat').className = "flex-1 md:flex-initial text-left px-4 py-3 rounded-xl font-medium text-sm bg-purple-600/10 text-purple-400 transition";
+            }
+        }
+
+        // СИНХРОНІЗАЦІЯ ДАНИХ (СТРІЧКА, ЧАТИ, КОРИСТУВАЧІ)
+        function initRealtimeSync() {
+            // 1. Потокова синхронізація постів стрічки
+            db.collection("posts").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+                const container = document.getElementById('posts-container');
+                container.innerHTML = "";
+                if(snapshot.empty) {
+                    container.innerHTML = `<div class="text-center p-8 text-[var(--text-muted)] text-sm">Тут ще немає постів. Будьте першим!</div>`;
+                    return;
+                }
+                snapshot.forEach(doc => {
+                    const post = doc.data();
+                    const postId = doc.id;
+                    const likedBy = post.likedBy || [];
+                    const isLiked = likedBy.includes(currentUser);
+
+                    const card = document.createElement('div');
+                    card.className = "p-4 border rounded-2xl bg-[var(--bg-card)] border-[var(--border-color)] flex flex-col gap-2";
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-sm text-purple-400">@${post.author}</span>
+                            <span class="text-[var(--text-muted)] text-xs">${post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'зараз'}</span>
+                        </div>
+                        <p class="text-sm whitespace-pre-wrap">${post.text}</p>
+                        <div class="flex items-center gap-4 mt-2 pt-2 border-t border-[var(--border-color)]">
+                            <button onclick="toggleLike('${postId}', ${JSON.stringify(likedBy)})" class="text-xs flex items-center gap-1 text-[var(--text-muted)] hover:text-red-400 transition">
+                                ${isLiked ? '❤️' : '🤍'} <span>${likedBy.length}</span>
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            });
+
+            // 2. Список користувачів для чату
+            db.collection("users").limit(50).onSnapshot(snapshot => {
+                const list = document.getElementById('users-list');
+                list.innerHTML = "";
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    if (user.username === currentUser) return; // Себе не показуємо
+
+                    const row = document.createElement('button');
+                    row.className = `w-full text-left p-2.5 rounded-xl text-sm flex items-center gap-2 transition ${currentActiveChatUser === user.username ? 'bg-purple-600/10 text-purple-400 font-semibold' : 'hover:bg-[var(--bg-input)]'}`;
+                    row.onclick = () => selectChat(user.username);
+                    row.innerHTML = `
+                        <div class="w-6 h-6 rounded-full bg-purple-500/10 text-[10px] font-bold flex items-center justify-center text-purple-400">${user.username.substring(0,2).toUpperCase()}</div>
+                        <span class="truncate">@${user.username}</span>
+                    `;
+                    list.appendChild(row);
+                });
+            });
+        }
+
+        // ФУНКЦІОНАЛ ПОСТІВ
+        function createPost() {
+            const input = document.getElementById('post-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            db.collection("posts").add({
                 author: currentUser,
-                name: file.name,
-                audioUrl: base64Audio,
-                createdAt: new Date().getTime()
+                text: text,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                likedBy: []
             }).then(() => {
-                event.target.value = ''; 
-            }).catch(err => console.error("Помилка завантаження треку:", err));
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-// ==========================================
-// 4. ДОПОМІЖНІ ЛОКАЛЬНІ ФУНКЦІЇ 
-// ==========================================
-
-const MUSIC_KEYWORDS = ["музика", "музикант", "співак", "співачка", "музикантка"];
-
-function checkBioForMusicKeywords() {
-    const bioText = document.getElementById('profile-bio').innerText.toLowerCase();
-    const tracksTabBtn = document.getElementById('tab-tracks-btn');
-    const hasKeyword = MUSIC_KEYWORDS.some(keyword => bioText.includes(keyword));
-    
-    if (hasKeyword) {
-        tracksTabBtn.style.display = 'block';
-    } else {
-        tracksTabBtn.style.display = 'none';
-        if (tracksTabBtn.classList.contains('active')) {
-            switchTab('publications');
+                input.value = "";
+            }).catch(err => alert("Помилка публікації: " + err.message));
         }
-    }
-}
 
-function toggleEditPanel() {
-    const panel = document.getElementById('edit-panel');
-    if (panel.style.display === 'block') {
-        panel.style.display = 'none';
-    } else {
-        panel.style.display = 'block';
-        document.getElementById('edit-nickname-input').value = document.getElementById('profile-nickname').innerText;
-        document.getElementById('edit-bio-input').value = document.getElementById('profile-bio').innerText;
-    }
-}
+        function toggleLike(postId, likedBy) {
+            const index = likedBy.indexOf(currentUser);
+            if (index > -1) {
+                likedBy.splice(index, 1); // Прибрати лайк
+            } else {
+                likedBy.push(currentUser); // Поставити лайк
+            }
+            db.collection("posts").doc(postId).update({ likedBy: likedBy });
+        }
 
-function switchTab(tabName) {
-    const buttons = document.querySelectorAll('.tab-btn');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    const panels = document.querySelectorAll('.tab-panel');
-    panels.forEach(panel => panel.classList.remove('active'));
-    
-    if (tabName === 'publications') {
-        document.getElementById('tab-publications').classList.add('active');
-        buttons[0].classList.add('active');
-    } else if (tabName === 'reposts') {
-        document.getElementById('tab-reposts').classList.add('active');
-        buttons[1].classList.add('active');
-    } else if (tabName === 'tracks') {
-        document.getElementById('tab-tracks').classList.add('active');
-        document.getElementById('tab-tracks-btn').classList.add('active');
-    }
-}
+        // ФУНКЦІОНАЛ ЧАТУ
+        let chatMessagesListener = null;
 
-function openModal(modalId) { document.getElementById(modalId).style.display = 'block'; }
-function closeModal(event, modalId) {
-    if (event.target === document.getElementById(modalId)) {
-        document.getElementById(modalId).style.display = 'none';
-    }
-}
+        function selectChat(username) {
+            currentActiveChatUser = username;
+            document.getElementById('chat-header').innerText = `Чат з @${username}`;
+            document.getElementById('chat-footer').classList.remove('hidden');
+            
+            // Перемальовуємо активний вибір у списку
+            initRealtimeSync();
 
-function logout() {
-    alert("Ви вийшли з профілю!");
-    document.body.innerHTML = "<div style='color:white; text-align:center; margin-top:20%; font-size:24px;'>Ви вийшли з системи. Перезавантажте сторінку.</div>";
-}
-</script>
+            // Відписуємось від попереднього чату, якщо він був відкритий
+            if (chatMessagesListener) chatMessagesListener();
+
+            // Завантажуємо повідомлення між currentUser та currentActiveChatUser
+            // Сортуємо за часом. Щоб обійти обмеження запитів Firestore без створення складних індексів,
+            // завантажуємо останні 100 повідомлень та фільтруємо на клієнті.
+            chatMessagesListener = db.collection("messages")
+                .orderBy("timestamp", "asc")
+                .limitToLast(100)
+                .onSnapshot(snapshot => {
+                    const container = document.getElementById('chat-messages');
+                    container.innerHTML = "";
+                    
+                    snapshot.forEach(doc => {
+                        const msg = doc.data();
+                        // Перевірка, чи це повідомлення стосується поточної пари користувачів
+                        if ((msg.sender === currentUser && msg.receiver === currentActiveChatUser) || 
+                            (msg.sender === currentActiveChatUser && msg.receiver === currentUser)) {
+                            
+                            const isMine = msg.sender === currentUser;
+                            const msgDiv = document.createElement('div');
+                            msgDiv.className = `flex w-full ${isMine ? 'justify-end' : 'justify-start'}`;
+                            msgDiv.innerHTML = `
+                                <div class="max-w-[75%] p-3 rounded-2xl text-sm ${isMine ? 'bg-purple-600 text-white rounded-br-none' : 'bg-[var(--bg-card)] border border-[var(--border-color)] rounded-bl-none'}">
+                                    <p class="break-words leading-tight">${msg.text}</p>
+                                </div>
+                            `;
+                            container.appendChild(msgDiv);
+                        }
+                    });
+                    container.scrollTop = container.scrollHeight;
+                });
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-msg-input');
+            const text = input.value.trim();
+            if (!text || !currentActiveChatUser) return;
+
+            db.collection("messages").add({
+                sender: currentUser,
+                receiver: currentActiveChatUser,
+                text: text,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                input.value = "";
+            });
+        }
+
+        // ЗМІНА ТЕМИ
+        function toggleTheme() {
+            const isLight = document.documentElement.classList.toggle('light-theme');
+            localStorage.setItem('sensu_theme', isLight ? 'light' : 'dark');
+        }
+
+        // Перевірка збереженої теми при завантаженні сторінки
+        if (localStorage.getItem('sensu_theme') === 'light') {
+            document.documentElement.classList.add('light-theme');
+        }
+    </script>
 </body>
 </html>
