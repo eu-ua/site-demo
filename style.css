@@ -1,0 +1,306 @@
+/* Основні налаштування сторінки */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #0f0f12;
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    box-sizing: border-box;
+    
+    /* 2. Повзунок з самого краю з правого боку */
+    overflow-y: scroll; 
+}
+
+/* 1. Розміщення: все по середині екрану */
+.profile-container {
+    width: 100%;
+    max-width: 850px;
+    background: #16161e;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    margin: 0 auto;
+}
+
+/* 3. Головне фото (Банер) */
+.banner-container {
+    width: 100%;
+    height: 220px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+.banner-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.3s;
+}
+.banner-container:hover img {
+    opacity: 0.8;
+}
+
+/* Інфо-панель */
+.profile-info-card {
+    padding: 24px;
+    background: linear-gradient(180deg, #1e1e28 0%, #16161e 100%);
+    border-bottom: 1px solid #2a2a35;
+}
+
+.profile-main-row {
+    display: flex;
+    align-items: center;
+    position: relative;
+    gap: 20px;
+}
+
+/* 4. Кругле фото (Аватар) ліворуч */
+.avatar-container {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 3px solid #16161e;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+}
+.avatar-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.avatar-container:hover {
+    opacity: 0.85;
+}
+
+/* Деталі користувача */
+.user-details {
+    flex-grow: 1;
+}
+
+/* 5. Нікнейм */
+.user-details h2 {
+    margin: 0 0 4px 0;
+    font-size: 24px;
+    cursor: pointer;
+    display: inline-block;
+}
+.user-details h2:hover {
+    color: #a5a5b5;
+    text-decoration: underline;
+}
+
+/* 6. Біографія */
+#profile-bio {
+    margin: 0 0 12px 0;
+    color: #b5b5c3;
+    font-size: 14px;
+}
+
+/* 7, 8, 9. Статистика */
+.stats-row {
+    display: flex;
+    gap: 15px;
+    font-size: 14px;
+    color: #858593;
+}
+.stats-row span {
+    cursor: pointer;
+}
+.stats-row span:hover strong {
+    color: #3b82f6;
+}
+.stats-row strong {
+    color: #ffffff;
+}
+
+/* Кнопки Дій (Редагувати, Вийти) */
+.profile-actions {
+    display: flex;
+    gap: 10px;
+    align-self: center;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 14px;
+}
+
+/* 10. Кнопка Редагування */
+.btn-edit {
+    background-color: #2b2b36;
+    color: #ffffff;
+    border: 1px solid #3f3f52;
+}
+.btn-edit:hover {
+    background-color: #3f3f52;
+}
+
+/* 11. Кнопка Вийти */
+.btn-logout {
+    background-color: #7f1d1d;
+    color: #fca5a5;
+}
+.btn-logout:hover {
+    background-color: #991b1b;
+}
+
+.btn-save {
+    background-color: #2563eb;
+    color: #ffffff;
+    margin-top: 10px;
+}
+.btn-save:hover {
+    background-color: #1d4ed8;
+}
+
+.btn-upload {
+    background-color: #10b981;
+    color: white;
+    margin-bottom: 15px;
+}
+
+/* 10. Панель редагування */
+.edit-panel {
+    display: none;
+    padding: 20px;
+    background: #1f1f2e;
+    border-bottom: 1px solid #2a2a35;
+}
+.form-group {
+    margin-bottom: 12px;
+}
+.form-group label {
+    display: block;
+    font-size: 12px;
+    color: #858593;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+.form-group input, .form-group textarea {
+    width: 100%;
+    padding: 8px;
+    background: #111116;
+    border: 1px solid #2a2a35;
+    border-radius: 6px;
+    color: white;
+    box-sizing: border-box;
+}
+
+/* Вкладки (12, 13, 14) */
+.profile-tabs {
+    display: flex;
+    border-bottom: 1px solid #2a2a35;
+    background: #16161e;
+}
+.tab-btn {
+    background: none;
+    border: none;
+    color: #858593;
+    padding: 15px 20px;
+    font-size: 15px;
+    cursor: pointer;
+    font-weight: 500;
+    position: relative;
+}
+.tab-btn.active {
+    color: #ffffff;
+}
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    border-bottom: 2px solid white;
+}
+
+/* Контент вкладок */
+.tab-content-container {
+    padding: 30px;
+    min-height: 150px;
+}
+.tab-panel {
+    display: none;
+}
+.tab-panel.active {
+    display: block;
+}
+.empty-message {
+    text-align: center;
+    color: #555566;
+    font-style: italic;
+}
+
+/* Елементи аудіо треків у вкладці */
+.track-item {
+    background: #20202c;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.track-title {
+    font-weight: bold;
+    font-size: 14px;
+}
+audio {
+    width: 100%;
+    height: 32px;
+}
+
+/* Модальні вікна */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.6);
+}
+.modal-content {
+    background-color: #16161e;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #2a2a35;
+    width: 300px;
+    border-radius: 10px;
+    position: relative;
+}
+.close-modal-btn {
+    position: absolute;
+    right: 15px;
+    top: 10px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #858593;
+}
+.users-list {
+    list-style: none;
+    padding: 0;
+}
+.users-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #2a2a35;
+}
+.users-list a {
+    color: #3b82f6;
+    text-decoration: none;
+}
