@@ -323,129 +323,61 @@ z-index: 50;
 </div>
 </div>
 </div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, getDocs, onSnapshot, query, updateDoc, deleteDoc, arrayUnion, arrayRemove, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-// !!! ЗАМІНИ ЦІ ДАНІ НА ВЛАСНІ З FIREBASE CONSOLE !!!
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
+<script>
 let currentUser = localStorage.getItem('currentUser') || null;
 let isLoginMode = false;
 
-let postsDB = [];
-let usersDB = [];
-let messagesDB = [];
-let notificationsDB = [];
-let followsDB = [];
-let tracksDB = [];
+// Оновлені бази даних
+let postsDB = JSON.parse(localStorage.getItem('sensu_posts_db_v5')) || [];
+let usersDB = JSON.parse(localStorage.getItem('sensu_users_db_v4')) || [];
+let messagesDB = JSON.parse(localStorage.getItem('sensu_messages_db')) || [];
+let notificationsDB = JSON.parse(localStorage.getItem('sensu_notifications_db')) || [];
+let followsDB = JSON.parse(localStorage.getItem('sensu_follows_db')) || [];
+let tracksDB = JSON.parse(localStorage.getItem('sensu_tracks_db')) || []; // Нова БД для треків
 let isNotificationsEnabled = localStorage.getItem('sensu_notif_enabled') !== 'false';
 
 let currentActiveChatUser = null;
-let currentPostFileBase64 = null;
+let currentPostFileBase64 = null; // Для зберігання медіа нового поста
 let currentPostFileType = null; 
 
-window.onload = async function() {
-  const savedTheme = localStorage.getItem('sensu_theme') || 'dark';
-  if (savedTheme === 'light') { document.documentElement.classList.add('light-theme'); }
-  if (currentUser) { 
-    initFirebaseListeners();
-    showMainApp(); 
-  } else { 
-    showAuthScreen(); 
-  }
-  setupDragAndDrop();
+window.onload = function() {
+const savedTheme = localStorage.getItem('sensu_theme') || 'dark';
+if (savedTheme === 'light') { document.documentElement.classList.add('light-theme'); }
+if (currentUser) { showMainApp(); } else { showAuthScreen(); }
+setupDragAndDrop();
 };
 
 function showAuthScreen() {
-  document.getElementById('welcome-screen').classList.remove('hidden');
-  document.getElementById('app-screen').classList.add('hidden');
+document.getElementById('welcome-screen').classList.remove('hidden');
+document.getElementById('app-screen').classList.add('hidden');
 }
-
 function showMainApp() {
-  document.getElementById('welcome-screen').classList.add('hidden');
-  document.getElementById('app-screen').classList.remove('hidden');
-  switchTab('feed');
+document.getElementById('welcome-screen').classList.add('hidden');
+document.getElementById('app-screen').classList.remove('hidden');
+
+let myData = usersDB.find(usr => usr.username === currentUser);
+if(!myData) {
+myData = { username: currentUser, bio: "", avatar: "", banner: "", social: "" };
+usersDB.push(myData);
+localStorage.setItem('sensu_users_db_v4', JSON.stringify(usersDB));
 }
 
-function initFirebaseListeners() {
-  onSnapshot(collection(db, "users"), (snapshot) => {
-    usersDB = [];
-    snapshot.forEach(d => usersDB.push(d.data()));
-    let myData = usersDB.find(usr => usr.username === currentUser);
-    if(myData) {
-      document.getElementById('cabinet-username').innerText = currentUser;
-      document.getElementById('input-username').value = currentUser;
-      document.getElementById('input-bio').value = myData.bio || "";
-      document.getElementById('input-social-link').value = myData.social || "";
-      renderAvatarHTML(myData, 'menu-avatar-txt', 'U');
-      updateProfileVisuals(myData, 'profile');
-      updateCounters(currentUser, 'profile');
-    }
-    renderFeed();
-    renderChatsList();
-    const viewUser = document.getElementById('view-username')?.innerText;
-    if(viewUser && viewUser !== "Користувач") {
-      const u = usersDB.find(usr => usr.username === viewUser);
-      if(u) updateProfileVisuals(u, 'view');
-    }
-  });
+document.getElementById('cabinet-username').innerText = currentUser;
+document.getElementById('input-username').value = currentUser;
+document.getElementById('input-bio').value = myData.bio || "";
+document.getElementById('input-social-link').value = myData.social || "";
 
-  onSnapshot(collection(db, "posts"), (snapshot) => {
-    postsDB = [];
-    snapshot.forEach(d => postsDB.push({ firestoreId: d.id, ...d.data() }));
-    postsDB.sort((a, b) => b.id - a.id);
-    renderFeed();
-    renderProfileSubTabs();
-    const viewUser = document.getElementById('view-username')?.innerText;
-    if(viewUser && viewUser !== "Користувач") renderViewProfileSubTabs(viewUser);
-  });
-
-  onSnapshot(collection(db, "follows"), (snapshot) => {
-    followsDB = [];
-    snapshot.forEach(d => followsDB.push(d.data()));
-    updateCounters(currentUser, 'profile');
-    const viewUser = document.getElementById('view-username')?.innerText;
-    if(viewUser && viewUser !== "Користувач") updateCounters(viewUser, 'view');
-  });
-
-  onSnapshot(collection(db, "messages"), (snapshot) => {
-    messagesDB = [];
-    snapshot.forEach(d => messagesDB.push(d.data()));
-    renderChatsList();
-    if (currentActiveChatUser) renderActiveChatMessages();
-  });
-
-  onSnapshot(collection(db, "notifications"), (snapshot) => {
-    notificationsDB = [];
-    snapshot.forEach(d => notificationsDB.push(d.data()));
-    notificationsDB.sort((a, b) => b.id - a.id);
-    renderNotifications();
-  });
-
-  onSnapshot(collection(db, "tracks"), (snapshot) => {
-    tracksDB = [];
-    snapshot.forEach(d => tracksDB.push(d.data()));
-    renderProfileSubTabs();
-    const viewUser = document.getElementById('view-username')?.innerText;
-    if(viewUser && viewUser !== "Користувач") {
-      const isOwner = viewUser === currentUser;
-      renderMusicList(viewUser, isOwner ? 'sub-tab-music' : 'view-sub-tab-music', isOwner);
-    }
-  });
+renderAvatarHTML(myData, 'menu-avatar-txt', 'U');
+updateProfileVisuals(myData, 'profile');
+updateCounters(currentUser, 'profile');
+renderFeed();
+renderProfileSubTabs();
+renderNotifications();
+renderChatsList();
+switchTab('feed');
 }
 
+// Допоміжна функція для читання файлів
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -456,184 +388,219 @@ function fileToBase64(file) {
 }
 
 function renderAvatarHTML(userObj, elementId, fallbackChar) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  if (userObj && userObj.avatar) {
-    el.innerHTML = `<img src="${userObj.avatar}" class="w-full h-full object-cover">`;
-  } else {
-    el.innerHTML = fallbackChar;
-  }
+const el = document.getElementById(elementId);
+if (!el) return;
+if (userObj && userObj.avatar) {
+el.innerHTML = `<img src="${userObj.avatar}" class="w-full h-full object-cover">`;
+} else {
+el.innerHTML = fallbackChar;
+}
 }
 
 function updateProfileVisuals(userObj, prefix) {
-  renderAvatarHTML(userObj, `${prefix}-avatar-placeholder`, userObj.username[0].toUpperCase());
-  const bannerContainer = document.getElementById(`${prefix}-banner-container`);
-  const linkEl = document.getElementById(`${prefix}-banner-link`);
-  const badgeEl = document.getElementById(`${prefix}-banner-badge`);
+renderAvatarHTML(userObj, `${prefix}-avatar-placeholder`, userObj.username[0].toUpperCase());
 
-  if (userObj.banner) {
+const bannerContainer = document.getElementById(`${prefix}-banner-container`);
+const linkEl = document.getElementById(`${prefix}-banner-link`);
+const badgeEl = document.getElementById(`${prefix}-banner-badge`);
+
+if (userObj.banner) {
     if(userObj.banner.startsWith('data:video')) {
         bannerContainer.innerHTML = `<video src="${userObj.banner}" class="w-full h-full object-cover" autoplay loop muted playsinline></video>`;
     } else {
         bannerContainer.innerHTML = `<img src="${userObj.banner}" class="w-full h-full object-cover">`;
     }
-  } else {
+} else {
     bannerContainer.innerHTML = "";
-  }
+}
 
-  if (userObj.social) {
-    linkEl.href = userObj.social;
-    linkEl.style.pointerEvents = "auto";
-    if (badgeEl) badgeEl.classList.remove('hidden');
-  } else {
-    linkEl.removeAttribute('href');
-    linkEl.style.pointerEvents = "none";
-    if (badgeEl) badgeEl.classList.add('hidden');
-  }
-  updateBioUI(userObj.username, userObj.bio, `${prefix}-bio-text`, prefix === 'profile' ? 'sub-btn-music' : 'view-sub-btn-music');
+if (userObj.social) {
+linkEl.href = userObj.social;
+linkEl.style.pointerEvents = "auto";
+if (badgeEl) badgeEl.classList.remove('hidden');
+} else {
+linkEl.removeAttribute('href');
+linkEl.style.pointerEvents = "none";
+if (badgeEl) badgeEl.classList.add('hidden');
+}
+updateBioUI(userObj.username, userObj.bio, `${prefix}-bio-text`, prefix === 'profile' ? 'sub-btn-music' : 'view-sub-btn-music');
 }
 
 function updateBioUI(username, bioText, bioElementId, musicBtnId) {
-  document.getElementById(bioElementId).innerText = bioText || "";
-  const btn = document.getElementById(musicBtnId);
-  if (!btn) return;
-  const keywords = ['музика', 'музикант', 'музикантка', 'співак', 'співачка', 'соліст'];
-  const hasKeyword = keywords.some(word => (bioText || '').toLowerCase().includes(word));
-  if (hasKeyword) { btn.classList.remove('hidden'); } else { btn.classList.add('hidden'); }
+document.getElementById(bioElementId).innerText = bioText || "";
+const btn = document.getElementById(musicBtnId);
+if (!btn) return;
+const keywords = ['музика', 'музикант', 'музикантка', 'співак', 'співачка', 'соліст'];
+const hasKeyword = keywords.some(word => (bioText || '').toLowerCase().includes(word));
+if (hasKeyword) { btn.classList.remove('hidden'); } else { btn.classList.add('hidden'); }
 }
 
 function updateCounters(username, prefix) {
-  const followers = followsDB.filter(f => f.following === username).map(f => f.follower);
-  const following = followsDB.filter(f => f.follower === username).map(f => f.following);
-  const authorPosts = postsDB.filter(p => p.author === username && !p.isRepost);
-  const totalLikes = authorPosts.reduce((acc, curr) => acc + (curr.likedBy ? curr.likedBy.length : 0), 0);
-  const followersCountEl = document.getElementById(`${prefix}-followers-count`);
-  const followingCountEl = document.getElementById(`${prefix}-following-count`);
-  const likesCountEl = document.getElementById(`${prefix}-likes-count`);
-  if(followersCountEl) followersCountEl.innerText = followers.length;
-  if(followingCountEl) followingCountEl.innerText = following.length;
-  if(likesCountEl) likesCountEl.innerText = totalLikes;
+const followers = followsDB.filter(f => f.following === username).map(f => f.follower);
+const following = followsDB.filter(f => f.follower === username).map(f => f.following);
+const authorPosts = postsDB.filter(p => p.author === username && !p.isRepost);
+const totalLikes = authorPosts.reduce((acc, curr) => acc + (curr.likedBy ? curr.likedBy.length : 0), 0);
+const followersCountEl = document.getElementById(`${prefix}-followers-count`);
+const followingCountEl = document.getElementById(`${prefix}-following-count`);
+const likesCountEl = document.getElementById(`${prefix}-likes-count`);
+if(followersCountEl) followersCountEl.innerText = followers.length;
+if(followingCountEl) followingCountEl.innerText = following.length;
+if(likesCountEl) likesCountEl.innerText = totalLikes;
 }
 
-async function updateUsernameCascade(oldName, newName) {
+// Каскадне оновлення нікнейму у всіх базах
+function updateUsernameCascade(oldName, newName) {
     if(oldName === newName) return true;
     if(usersDB.some(u => u.username === newName)) { alert('Цей нікнейм вже зайнятий!'); return false; }
 
-    const oldDoc = await getDoc(doc(db, "users", oldName));
-    if(oldDoc.exists()) {
-        await setDoc(doc(db, "users", newName), { ...oldDoc.data(), username: newName });
-        await deleteDoc(doc(db, "users", oldName));
-    }
     currentUser = newName;
     localStorage.setItem('currentUser', currentUser);
+    document.getElementById('cabinet-username').innerText = currentUser;
+
+    // Posts & Comments
+    postsDB.forEach(p => {
+        if(p.author === oldName) p.author = newName;
+        if(p.originalAuthor === oldName) p.originalAuthor = newName;
+        if(p.likedBy) p.likedBy = p.likedBy.map(u => u === oldName ? newName : u);
+        if(p.repostedBy) p.repostedBy = p.repostedBy.map(u => u === oldName ? newName : u);
+        p.comments.forEach(c => { if(c.author === oldName) c.author = newName; });
+    });
+    // Follows
+    followsDB.forEach(f => {
+        if(f.follower === oldName) f.follower = newName;
+        if(f.following === oldName) f.following = newName;
+    });
+    // Messages
+    messagesDB.forEach(m => {
+        if(m.sender === oldName) m.sender = newName;
+        if(m.receiver === oldName) m.receiver = newName;
+    });
+    // Notifications
+    notificationsDB.forEach(n => {
+        if(n.target === oldName) n.target = newName;
+        if(n.from === oldName) n.from = newName;
+    });
+    // Tracks
+    tracksDB.forEach(t => {
+        if(t.author === oldName) t.author = newName;
+    });
+
+    localStorage.setItem('sensu_posts_db_v5', JSON.stringify(postsDB));
+    localStorage.setItem('sensu_follows_db', JSON.stringify(followsDB));
+    localStorage.setItem('sensu_messages_db', JSON.stringify(messagesDB));
+    localStorage.setItem('sensu_notifications_db', JSON.stringify(notificationsDB));
+    localStorage.setItem('sensu_tracks_db', JSON.stringify(tracksDB));
     return true;
 }
 
 async function saveBio() {
-  const me = usersDB.find(usr => usr.username === currentUser);
-  if(me) {
+const me = usersDB.find(usr => usr.username === currentUser);
+if(me) {
     const newName = document.getElementById('input-username').value.trim();
     if(newName && newName !== currentUser) {
-        const success = await updateUsernameCascade(currentUser, newName);
+        const success = updateUsernameCascade(currentUser, newName);
         if(!success) return; 
+        me.username = newName;
     }
 
-    const userRef = doc(db, "users", currentUser);
-    const updateData = {
-        bio: document.getElementById('input-bio').value.trim(),
-        social: document.getElementById('input-social-link').value.trim()
-    };
+    me.bio = document.getElementById('input-bio').value.trim();
+    me.social = document.getElementById('input-social-link').value.trim();
 
     const avFile = document.getElementById('input-avatar-file').files[0];
-    if(avFile) updateData.avatar = await fileToBase64(avFile);
+    if(avFile) me.avatar = await fileToBase64(avFile);
 
     const bnFile = document.getElementById('input-banner-file').files[0];
-    if(bnFile) updateData.banner = await fileToBase64(bnFile);
+    if(bnFile) me.banner = await fileToBase64(bnFile);
 
-    await updateDoc(userRef, updateData);
-  }
-  document.getElementById('edit-bio-box').classList.add('hidden');
+    localStorage.setItem('sensu_users_db_v4', JSON.stringify(usersDB));
+
+    renderAvatarHTML(me, 'menu-avatar-txt', 'U');
+    updateProfileVisuals(me, 'profile');
+    renderFeed();
+    renderProfileSubTabs();
+    renderChatsList();
+}
+document.getElementById('edit-bio-box').classList.add('hidden');
 }
 
 function viewUserProfile(name) {
-  if(name === currentUser) { switchTab('profile'); return; }
-  const u = usersDB.find(usr => usr.username === name) || { username: name, bio: "", avatar: "", banner: "", social: "" };
+if(name === currentUser) { switchTab('profile'); return; }
+const u = usersDB.find(usr => usr.username === name) || { username: name, bio: "", avatar: "", banner: "", social: "" };
 
-  switchTab('view-profile');
-  document.getElementById('view-username').innerText = u.username;
+switchTab('view-profile');
+document.getElementById('view-username').innerText = u.username;
 
-  const isFollowing = followsDB.some(f => f.follower === currentUser && f.following === u.username);
-  const btn = document.getElementById('view-follow-btn');
-  btn.innerText = isFollowing ? 'Відписатися' : 'Підписатися';
-  btn.onclick = function() { toggleFollow(u.username); };
+const isFollowing = followsDB.some(f => f.follower === currentUser && f.following === u.username);
+const btn = document.getElementById('view-follow-btn');
+btn.innerText = isFollowing ? 'Відписатися' : 'Підписатися';
+btn.onclick = function() { toggleFollow(u.username); };
 
-  if(isFollowing) {
-    btn.className = "text-xs font-black px-4 py-2 rounded-lg transition w-full sm:w-auto text-center bg-gray-500/20 text-custom-title";
-  } else {
-    btn.className = "text-xs font-black px-4 py-2 rounded-lg transition w-full sm:w-auto text-center bg-[#b19ffb] text-black";
-  }
-  document.getElementById('view-chat-btn').onclick = function() { openChatWith(u.username); };
+if(isFollowing) {
+btn.className = "text-xs font-black px-4 py-2 rounded-lg transition w-full sm:w-auto text-center bg-gray-500/20 text-custom-title";
+} else {
+btn.className = "text-xs font-black px-4 py-2 rounded-lg transition w-full sm:w-auto text-center bg-[#b19ffb] text-black";
+}
+document.getElementById('view-chat-btn').onclick = function() { openChatWith(u.username); };
 
-  updateProfileVisuals(u, 'view');
-  updateCounters(u.username, 'view');
-  renderViewProfileSubTabs(u.username);
-  switchViewProfileSubTab('posts');
+updateProfileVisuals(u, 'view');
+updateCounters(u.username, 'view');
+renderViewProfileSubTabs(u.username);
+switchViewProfileSubTab('posts');
+}
+function openFollowersModal(username, type) {
+const modal = document.getElementById('followers-modal');
+const title = document.getElementById('followers-modal-title');
+const listContainer = document.getElementById('followers-modal-list');
+
+modal.classList.remove('hidden');
+let list = [];
+
+if (type === 'followers') {
+title.innerText = `Підписники @${username}`;
+list = followsDB.filter(f => f.following === username).map(f => f.follower);
+} else {
+title.innerText = `Підписки @${username}`;
+list = followsDB.filter(f => f.follower === username).map(f => f.following);
 }
 
-function openFollowersModal(username, type) {
-  const modal = document.getElementById('followers-modal');
-  const title = document.getElementById('followers-modal-title');
-  const listContainer = document.getElementById('followers-modal-list');
+if (list.length === 0) {
+listContainer.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-4">Список порожній</p>`;
+return;
+}
 
-  modal.classList.remove('hidden');
-  let list = [];
-
-  if (type === 'followers') {
-    title.innerText = `Підписники @${username}`;
-    list = followsDB.filter(f => f.following === username).map(f => f.follower);
-  } else {
-    title.innerText = `Підписки @${username}`;
-    list = followsDB.filter(f => f.follower === username).map(f => f.following);
-  }
-
-  if (list.length === 0) {
-    listContainer.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-4">Список порожній</p>`;
-    return;
-  }
-
-  listContainer.innerHTML = list.map(u => `
-    <div class="flex items-center justify-between p-2 custom-card border rounded-lg">
-    <span class="text-xs font-bold text-custom-title">@${u}</span>
-    <button onclick="closeFollowersModal(); viewUserProfile('${u}')" class="text-[11px] bg-[#b19ffb] text-black font-black px-2.5 py-1 rounded-md">Профіль</button>
-    </div>
-  `).join('');
+listContainer.innerHTML = list.map(u => `
+<div class="flex items-center justify-between p-2 custom-card border rounded-lg">
+<span class="text-xs font-bold text-custom-title">@${u}</span>
+<button onclick="closeFollowersModal(); viewUserProfile('${u}')" class="text-[11px] bg-[#b19ffb] text-black font-black px-2.5 py-1 rounded-md">Профіль</button>
+</div>
+`).join('');
 }
 
 function closeFollowersModal() { document.getElementById('followers-modal').classList.add('hidden'); }
-
-async function toggleFollow(targetUser) {
-  const followId = `${currentUser}_${targetUser}`;
-  const followRef = doc(db, "follows", followId);
-  const followSnap = await getDoc(followRef);
-  
-  if (!followSnap.exists()) {
-    await setDoc(followRef, { follower: currentUser, following: targetUser });
-    createNotification(targetUser, `підписався(лася) на твій профіль`);
-  } else {
-    await deleteDoc(followRef);
-  }
+function toggleFollow(targetUser) {
+const index = followsDB.findIndex(f => f.follower === currentUser && f.following === targetUser);
+if (index === -1) {
+followsDB.push({ follower: currentUser, following: targetUser });
+createNotification(targetUser, `підписався(лася) на твій профіль`);
+} else {
+followsDB.splice(index, 1);
+}
+localStorage.setItem('sensu_follows_db', JSON.stringify(followsDB));
+viewUserProfile(targetUser);
 }
 
 async function handleMusicUpload(event) {
     const file = event.target.files[0];
     if(!file) return;
     const base64Audio = await fileToBase64(file);
-    const trackId = `${Date.now()}`;
-    await setDoc(doc(db, "tracks", trackId), { id: parseInt(trackId), author: currentUser, name: file.name, data: base64Audio });
+    tracksDB.push({ id: Date.now(), author: currentUser, name: file.name, data: base64Audio });
+    localStorage.setItem('sensu_tracks_db', JSON.stringify(tracksDB));
+    renderProfileSubTabs();
 }
-
-async function deleteTrack(id) {
-    await deleteDoc(doc(db, "tracks", String(id)));
+function deleteTrack(id) {
+    tracksDB = tracksDB.filter(t => t.id !== id);
+    localStorage.setItem('sensu_tracks_db', JSON.stringify(tracksDB));
+    renderProfileSubTabs();
 }
 
 function renderMusicList(username, zoneId, isOwner) {
@@ -665,98 +632,90 @@ function renderMusicList(username, zoneId, isOwner) {
 }
 
 function renderProfileSubTabs() {
-  const myPostsZone = document.getElementById('sub-tab-posts');
-  const myRepostsZone = document.getElementById('sub-tab-reposts');
-  const myPosts = postsDB.filter(p => p.author === currentUser && !p.isRepost);
-  const myReposts = postsDB.filter(p => p.author === currentUser && p.isRepost);
+const myPostsZone = document.getElementById('sub-tab-posts');
+const myRepostsZone = document.getElementById('sub-tab-reposts');
+const myPosts = postsDB.filter(p => p.author === currentUser && !p.isRepost);
+const myReposts = postsDB.filter(p => p.author === currentUser && p.isRepost);
 
-  if(myPosts.length === 0) myPostsZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Немає особистих публікацій</p>`;
-  else myPostsZone.innerHTML = myPosts.map(p => createPostCardHTML(p, 'profile-p')).join('');
+if(myPosts.length === 0) myPostsZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Немає особистих публікацій</p>`;
+else myPostsZone.innerHTML = myPosts.map(p => createPostCardHTML(p, 'profile-p')).join('');
 
-  if(myReposts.length === 0) myRepostsZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Немає репостів</p>`;
-  else myRepostsZone.innerHTML = myReposts.map(p => createPostCardHTML(p, 'profile-r')).join('');
+if(myReposts.length === 0) myRepostsZone.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Немає репостів</p>`;
+else myRepostsZone.innerHTML = myReposts.map(p => createPostCardHTML(p, 'profile-r')).join('');
 
-  renderMusicList(currentUser, 'sub-tab-music', true);
+renderMusicList(currentUser, 'sub-tab-music', true);
 }
 
 function renderViewProfileSubTabs(username) {
-  const zonePosts = document.getElementById('view-sub-tab-posts');
-  const zoneReposts = document.getElementById('view-sub-tab-reposts');
-  const uPosts = postsDB.filter(p => p.author === username && !p.isRepost);
-  const uReposts = postsDB.filter(p => p.author === username && p.isRepost);
+const zonePosts = document.getElementById('view-sub-tab-posts');
+const zoneReposts = document.getElementById('view-sub-tab-reposts');
+const uPosts = postsDB.filter(p => p.author === username && !p.isRepost);
+const uReposts = postsDB.filter(p => p.author === username && p.isRepost);
 
-  if(uPosts.length === 0) zonePosts.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Немає публікацій</p>`;
-  else zonePosts.innerHTML = uPosts.map(p => createPostCardHTML(p, 'view-p')).join('');
+if(uPosts.length === 0) zonePosts.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Немає публікацій</p>`;
+else zonePosts.innerHTML = uPosts.map(p => createPostCardHTML(p, 'view-p')).join('');
 
-  if(uReposts.length === 0) zoneReposts.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Немає репостів</p>`;
-  else zoneReposts.innerHTML = uReposts.map(p => createPostCardHTML(p, 'view-r')).join('');
+if(uReposts.length === 0) zoneReposts.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Немає репостів</p>`;
+else zoneReposts.innerHTML = uReposts.map(p => createPostCardHTML(p, 'view-r')).join('');
 
-  renderMusicList(username, 'view-sub-tab-music', false);
+renderMusicList(username, 'view-sub-tab-music', false);
 }
 
 function switchProfileSubTab(sub) {
-  document.querySelectorAll('.profile-sub-zone').forEach(z => z.classList.add('hidden'));
-  document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('border-b-2', 'border-[#b19ffb]', 'font-black', 'text-custom-title'));
-  document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.add('text-custom-muted'));
-  document.getElementById(`sub-tab-${sub}`).classList.remove('hidden');
-  document.getElementById(`sub-btn-${sub}`).classList.replace('text-custom-muted', 'text-custom-title');
-  document.getElementById(`sub-btn-${sub}`).classList.add('border-b-2', 'border-[#b19ffb]', 'font-black');
-}
+document.querySelectorAll('.profile-sub-zone').forEach(z => z.classList.add('hidden'));
+document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('border-b-2', 'border-[#b19ffb]', 'font-black', 'text-custom-title'));
+document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.add('text-custom-muted'));
 
+document.getElementById(`sub-tab-${sub}`).classList.remove('hidden');
+document.getElementById(`sub-btn-${sub}`).classList.replace('text-custom-muted', 'text-custom-title');
+document.getElementById(`sub-btn-${sub}`).classList.add('border-b-2', 'border-[#b19ffb]', 'font-black');
+}
 function switchViewProfileSubTab(sub) {
-  document.querySelectorAll('.view-profile-sub-zone').forEach(z => z.classList.add('hidden'));
-  document.querySelectorAll('.view-sub-tab-btn').forEach(b => b.classList.remove('border-b-2', 'border-[#b19ffb]', 'font-black', 'text-custom-title'));
-  document.querySelectorAll('.view-sub-tab-btn').forEach(b => b.classList.add('text-custom-muted'));
-  document.getElementById(`view-sub-tab-${sub}`).classList.remove('hidden');
-  document.getElementById(`view-sub-btn-${sub}`).classList.replace('text-custom-muted', 'text-custom-title');
-  document.getElementById(`view-sub-btn-${sub}`).classList.add('border-b-2', 'border-[#b19ffb]', 'font-black');
-}
+document.querySelectorAll('.view-profile-sub-zone').forEach(z => z.classList.add('hidden'));
+document.querySelectorAll('.view-sub-tab-btn').forEach(b => b.classList.remove('border-b-2', 'border-[#b19ffb]', 'font-black', 'text-custom-title'));
+document.querySelectorAll('.view-sub-tab-btn').forEach(b => b.classList.add('text-custom-muted'));
 
+document.getElementById(`view-sub-tab-${sub}`).classList.remove('hidden');
+document.getElementById(`view-sub-btn-${sub}`).classList.replace('text-custom-muted', 'text-custom-title');
+document.getElementById(`view-sub-btn-${sub}`).classList.add('border-b-2', 'border-[#b19ffb]', 'font-black');
+}
 function openEditBio() { document.getElementById('edit-bio-box').classList.toggle('hidden'); }
 function toggleSettingsMenu(event) { event.stopPropagation(); document.getElementById('settings-dropdown').classList.toggle('show'); }
 function closeSettingsMenu() { document.getElementById('settings-dropdown').classList.remove('show'); }
 function toggleAuthMode() { isLoginMode = !isLoginMode; document.getElementById('auth-title').innerText = isLoginMode ? "Вхід" : "Реєстрація"; }
 
-async function handleAuth() {
-  const username = document.getElementById('username-input').value.trim();
-  if(!username) return;
-  currentUser = username;
-  localStorage.setItem('currentUser', currentUser);
-  
-  const userRef = doc(db, "users", currentUser);
-  const userSnap = await getDoc(userRef);
-  if (!userSnap.exists()) {
-      await setDoc(userRef, { username: currentUser, bio: "", avatar: "", banner: "", social: "" });
-  }
-  initFirebaseListeners();
-  showMainApp();
+function handleAuth() {
+const username = document.getElementById('username-input').value.trim();
+if(!username) return;
+currentUser = username;
+localStorage.setItem('currentUser', currentUser);
+showMainApp();
 }
-
 function logout() { currentUser = null; localStorage.removeItem('currentUser'); showAuthScreen(); }
-
 function switchTab(tabId) {
-  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
-  document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('text-[#b19ffb]', 'bg-[#b19ffb]/10'));
-  const sBtn = document.getElementById(`side-tab-${tabId}`); if(sBtn) sBtn.classList.add('text-[#b19ffb]', 'bg-[#b19ffb]/10');
+document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('text-[#b19ffb]', 'bg-[#b19ffb]/10'));
+const sBtn = document.getElementById(`side-tab-${tabId}`); if(sBtn) sBtn.classList.add('text-[#b19ffb]', 'bg-[#b19ffb]/10');
 }
-
 function openNewPostModal() { document.getElementById('new-post-modal').classList.remove('hidden'); }
 function closeNewPostModal() { document.getElementById('new-post-modal').classList.add('hidden'); }
 
+// Drag & Drop Логіка для постів
 function setupDragAndDrop() {
     const dropZone = document.getElementById('file-drop-zone');
-    if(!dropZone) return;
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
     });
     function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    
     ['dragenter', 'dragover'].forEach(eventName => {
         dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
     });
     ['dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
     });
+    
     dropZone.addEventListener('drop', (e) => {
         let dt = e.dataTransfer;
         let files = dt.files;
@@ -768,6 +727,7 @@ async function processPostFile(file) {
     if(!file) return;
     currentPostFileType = file.type.startsWith('video') ? 'video' : 'image';
     currentPostFileBase64 = await fileToBase64(file);
+    
     document.getElementById('file-drop-zone').classList.add('hidden');
     document.getElementById('file-preview-area').classList.remove('hidden');
     document.getElementById('file-preview-name').innerText = file.name;
@@ -786,272 +746,237 @@ function clearPostFile(e) {
     document.getElementById('file-preview-area').classList.add('hidden');
 }
 
-async function createPost() {
-  const txt = document.getElementById('post-text').value.trim();
-  if(!txt && !currentPostFileBase64) return;
 
-  const newPost = {
-    id: Date.now(),
-    author: currentUser,
-    text: txt,
-    image: currentPostFileType === 'image' ? currentPostFileBase64 : "",
-    video: currentPostFileType === 'video' ? currentPostFileBase64 : "",
-    likedBy: [],
-    comments: [],
-    isRepost: false
-  };
+function createPost() {
+const txt = document.getElementById('post-text').value.trim();
+if(!txt && !currentPostFileBase64) return;
 
-  await addDoc(collection(db, "posts"), newPost);
-  document.getElementById('post-text').value = "";
-  clearPostFile();
-  closeNewPostModal();
+postsDB.unshift({
+id: Date.now(),
+author: currentUser,
+text: txt,
+image: currentPostFileType === 'image' ? currentPostFileBase64 : "",
+video: currentPostFileType === 'video' ? currentPostFileBase64 : "",
+likedBy: [],
+comments: [],
+isRepost: false
+});
+
+localStorage.setItem('sensu_posts_db_v5', JSON.stringify(postsDB));
+
+document.getElementById('post-text').value = "";
+clearPostFile();
+closeNewPostModal();
+renderFeed();
+renderProfileSubTabs();
 }
 
-async function repostPost(id) {
-  const originPost = postsDB.find(p => p.id === id);
-  if (!originPost || originPost.author === currentUser) return;
-  if (!originPost.repostedBy) originPost.repostedBy = [];
-  if (originPost.repostedBy.includes(currentUser)) return;
+function repostPost(id) {
+const originPost = postsDB.find(p => p.id === id);
+if (!originPost || originPost.author === currentUser) return;
+if (!originPost.repostedBy) originPost.repostedBy = [];
+if (originPost.repostedBy.includes(currentUser)) return;
 
-  await updateDoc(doc(db, "posts", originPost.firestoreId), {
-      repostedBy: arrayUnion(currentUser)
-  });
+originPost.repostedBy.push(currentUser);
+createNotification(originPost.author, `репостнув(ла) твій пост`);
 
-  createNotification(originPost.author, `репостнув(ла) твій пост`);
+postsDB.unshift({
+id: Date.now(),
+originId: originPost.id,
+author: currentUser,
+text: originPost.text,
+image: originPost.image || "",
+video: originPost.video || "",
+likedBy: [],
+comments: [],
+isRepost: true,
+originalAuthor: originPost.author
+});
 
-  const newRepost = {
-    id: Date.now(),
-    originId: originPost.id,
-    author: currentUser,
-    text: originPost.text,
-    image: originPost.image || "",
-    video: originPost.video || "",
-    likedBy: [],
-    comments: [],
-    isRepost: true,
-    originalAuthor: originPost.author
-  };
-
-  await addDoc(collection(db, "posts"), newRepost);
+localStorage.setItem('sensu_posts_db_v5', JSON.stringify(postsDB));
+renderFeed();
+renderProfileSubTabs();
 }
 
-async function deletePost(id) {
-  const postToDelete = postsDB.find(p => p.id === id);
-  if (!postToDelete) return;
-  if (postToDelete.isRepost && postToDelete.originId) {
-    const original = postsDB.find(p => p.id === postToDelete.originId);
-    if (original && original.firestoreId) {
-      await updateDoc(doc(db, "posts", original.firestoreId), {
-        repostedBy: arrayRemove(currentUser)
-      });
-    }
-  }
-  await deleteDoc(doc(db, "posts", postToDelete.firestoreId));
+function deletePost(id) {
+const postToDelete = postsDB.find(p => p.id === id);
+if (!postToDelete) return;
+if (postToDelete.isRepost && postToDelete.originId) {
+const original = postsDB.find(p => p.id === postToDelete.originId);
+if (original && original.repostedBy) {
+original.repostedBy = original.repostedBy.filter(u => u !== currentUser);
+}
+}
+postsDB = postsDB.filter(p => p.id !== id);
+localStorage.setItem('sensu_posts_db_v5', JSON.stringify(postsDB));
+renderFeed();
+renderProfileSubTabs();
 }
 
-async function likePost(id) {
-  const post = postsDB.find(p => p.id === id);
-  if (!post) return;
-  const idx = post.likedBy.indexOf(currentUser);
-  const postRef = doc(db, "posts", post.firestoreId);
-  
-  if(idx === -1) {
-    await updateDoc(postRef, { likedBy: arrayUnion(currentUser) });
-    createNotification(post.author, `вподобав(ла) твій пост`);
-  } else {
-    await updateDoc(postRef, { likedBy: arrayRemove(currentUser) });
-  }
+function likePost(id) {
+const post = postsDB.find(p => p.id === id);
+if (!post) return;
+const idx = post.likedBy.indexOf(currentUser);
+if(idx === -1) {
+post.likedBy.push(currentUser);
+createNotification(post.author, `вподобав(ла) твій пост`);
+} else { post.likedBy.splice(idx, 1); }
+localStorage.setItem('sensu_posts_db_v5', JSON.stringify(postsDB));
+renderFeed(); renderProfileSubTabs();
+updateCounters(currentUser, 'profile');
+const viewUser = document.getElementById('view-username').innerText;
+if(viewUser) updateCounters(viewUser, 'view');
 }
 
 function getPostMediaHTML(post) {
-  let html = "";
-  if (post.image) {
-    html += `<div class="mt-2.5 rounded-xl overflow-hidden border border-gray-500/10 max-h-80 bg-black/20 flex items-center justify-center">
-    <img src="${post.image}" class="w-full h-full object-contain max-h-80" alt="Post Media">
-    </div>`;
-  }
-  if (post.video) {
-    if (post.video.includes('youtube.com') || post.video.includes('youtu.be')) {
-      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-      let match = post.video.match(regExp);
-      let videoId = (match && match[2].length == 11) ? match[2] : null;
-      if (videoId) {
-        html += `<div class="mt-2.5 rounded-xl overflow-hidden aspect-video border border-gray-500/10 bg-black">
-        <iframe class="w-full h-full" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
-        </div>`;
-      }
-    } else {
-      html += `<div class="mt-2.5 rounded-xl overflow-hidden border border-gray-500/10 bg-black">
-      <video src="${post.video}" controls class="w-full max-h-80 object-contain"></video>
-      </div>`;
-    }
-  }
-  return html;
+let html = "";
+if (post.image) {
+html += `<div class="mt-2.5 rounded-xl overflow-hidden border border-gray-500/10 max-h-80 bg-black/20 flex items-center justify-center">
+<img src="${post.image}" class="w-full h-full object-contain max-h-80" alt="Post Media">
+</div>`;
+}
+if (post.video) {
+if (post.video.includes('youtube.com') || post.video.includes('youtu.be')) {
+let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+let match = post.video.match(regExp);
+let videoId = (match && match[2].length == 11) ? match[2] : null;
+if (videoId) {
+html += `<div class="mt-2.5 rounded-xl overflow-hidden aspect-video border border-gray-500/10 bg-black">
+<iframe class="w-full h-full" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
+</div>`;
+}
+} else {
+html += `<div class="mt-2.5 rounded-xl overflow-hidden border border-gray-500/10 bg-black">
+<video src="${post.video}" controls class="w-full max-h-80 object-contain"></video>
+</div>`;
+}
+}
+return html;
 }
 
 function createPostCardHTML(post, containerContext) {
-  let isMyPost = post.author === currentUser;
-  let deleteBtnText = post.isRepost ? "Видалити репост" : "Видалити";
-  let deletePostBtn = isMyPost ? `<button onclick="deletePost(${post.id})" class="text-[10px] text-red-400 hover:underline font-bold">${deleteBtnText}</button>` : "";
-  let repostBadge = post.isRepost ? `<p class="text-[10px] text-[#b19ffb] font-black mb-1 flex items-center gap-1"> 🔄  Репост від @${post.originalAuthor}</p>` : "";
-  let commentsHTML = post.comments.map(c => `<div class="text-xs"><b>@${c.author}:</b> ${c.text}</div>`).join('');
-  const hasLiked = post.likedBy && post.likedBy.includes(currentUser);
+let isMyPost = post.author === currentUser;
+let deleteBtnText = post.isRepost ? "Видалити репост" : "Видалити";
+let deletePostBtn = isMyPost ? `<button onclick="deletePost(${post.id})" class="text-[10px] text-red-400 hover:underline font-bold">${deleteBtnText}</button>` : "";
 
-  const authorData = usersDB.find(u => u.username === post.author);
-  let avatarContent = post.author[0].toUpperCase();
-  if (authorData && authorData.avatar) {
-    avatarContent = `<img src="${authorData.avatar}" class="w-full h-full object-cover">`;
-  }
-  let mediaContent = getPostMediaHTML(post);
-  let alreadyReposted = post.repostedBy && post.repostedBy.includes(currentUser);
-  let canRepost = !post.isRepost && post.author !== currentUser && !alreadyReposted;
+let repostBadge = post.isRepost ? `<p class="text-[10px] text-[#b19ffb] font-black mb-1 flex items-center gap-1"> 🔄  Репост від @${post.originalAuthor}</p>` : "";
+let commentsHTML = post.comments.map(c => `<div class="text-xs"><b>@${c.author}:</b> ${c.text}</div>`).join('');
+const hasLiked = post.likedBy.includes(currentUser);
 
-  return `
-    <div class="custom-card border rounded-xl overflow-hidden bg-card">
-    <div class="p-3 flex justify-between items-center border-b border-gray-500/10">
-    <div class="flex items-center gap-2 cursor-pointer" onclick="viewUserProfile('${post.author}')">
-    <div class="w-6 h-6 bg-[#b19ffb] text-black text-[10px] font-black rounded-full flex items-center justify-center overflow-hidden">${avatarContent}</div>
-    <span class="text-xs font-black text-custom-title">@${post.author}</span>
-    </div>
-    ${deletePostBtn}
-    </div>
-    <div class="p-3">
-    ${repostBadge}
-    ${post.text ? `<p class="text-xs text-custom-title whitespace-pre-line leading-relaxed">${post.text}</p>` : ''}
-    ${mediaContent}
-    </div>
-    <div class="p-3 border-t border-gray-500/10 flex items-center gap-6 text-sm">
-    <button onclick="likePost(${post.id})" class="flex items-center gap-1.5 transition ${hasLiked ? 'text-red-500' : 'text-custom-muted hover:text-red-500'}">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="${hasLiked ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>
-    <span class="text-xs font-bold">${post.likedBy ? post.likedBy.length : 0}</span>
-    </button>
-    <button onclick="document.getElementById('comments-area-${containerContext}-${post.id}').classList.toggle('hidden')" class="flex items-center gap-1.5 text-custom-muted hover:text-[#b19ffb]">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.381.22.806.337 1.243.337Z" /></svg>
-    <span class="text-xs font-bold">${post.comments ? post.comments.length : 0}</span>
-    </button>
-    ${canRepost ? `
-    <button onclick="repostPost(${post.id})" class="flex items-center gap-1.5 text-custom-muted hover:text-green-500" title="Репостнути">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.656 48.656 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3M3 12c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M3 12l-3 3m3-3 3 3" /></svg>
-    </button>` : ''}
-    </div>
-    <div id="comments-area-${containerContext}-${post.id}" class="hidden p-3 bg-gray-500/5 border-t border-gray-500/10 space-y-2">
-    <div class="space-y-1.5">${commentsHTML}</div>
-    <div class="flex gap-2 mt-2">
-    <input type="text" id="comment-in-${containerContext}-${post.id}" placeholder="Коментувати..." class="flex-1 custom-input border rounded-xl px-3 py-1.5 text-xs focus:outline-none">
-    <button onclick="addComment(${post.id}, '${containerContext}')" class="bg-[#b19ffb] text-black font-black text-xs px-3 py-1.5 rounded-lg">ОК</button>
-    </div>
-    </div>
-    </div>`;
+const authorData = usersDB.find(u => u.username === post.author);
+let avatarContent = post.author[0].toUpperCase();
+if (authorData && authorData.avatar) {
+avatarContent = `<img src="${authorData.avatar}" class="w-full h-full object-cover">`;
 }
-
+let mediaContent = getPostMediaHTML(post);
+let alreadyReposted = post.repostedBy && post.repostedBy.includes(currentUser);
+let canRepost = !post.isRepost && post.author !== currentUser && !alreadyReposted;
+return `
+<div class="custom-card border rounded-xl overflow-hidden bg-card">
+<div class="p-3 flex justify-between items-center border-b border-gray-500/10">
+<div class="flex items-center gap-2 cursor-pointer" onclick="viewUserProfile('${post.author}')">
+<div class="w-6 h-6 bg-[#b19ffb] text-black text-[10px] font-black rounded-full flex items-center justify-center overflow-hidden">${avatarContent}</div>
+<span class="text-xs font-black text-custom-title">@${post.author}</span>
+</div>
+${deletePostBtn}
+</div>
+<div class="p-3">
+${repostBadge}
+${post.text ? `<p class="text-xs text-custom-title whitespace-pre-line leading-relaxed">${post.text}</p>` : ''}
+${mediaContent}
+</div>
+<div class="p-3 border-t border-gray-500/10 flex items-center gap-6 text-sm">
+<button onclick="likePost(${post.id})" class="flex items-center gap-1.5 transition ${hasLiked ? 'text-red-500' : 'text-custom-muted hover:text-red-500'}">
+<svg xmlns="http://www.w3.org/2000/svg" fill="${hasLiked ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>
+<span class="text-xs font-bold">${post.likedBy.length}</span>
+</button>
+<button onclick="document.getElementById('comments-area-${containerContext}-${post.id}').classList.toggle('hidden')" class="flex items-center gap-1.5 text-custom-muted hover:text-[#b19ffb]">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.381.22.806.337 1.243.337Z" /></svg>
+<span class="text-xs font-bold">${post.comments.length}</span>
+</button>
+${canRepost ? `
+<button onclick="repostPost(${post.id})" class="flex items-center gap-1.5 text-custom-muted hover:text-green-500" title="Репостнути">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.656 48.656 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3M3 12c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M3 12l-3 3m3-3 3 3" /></svg>
+</button>` : ''}
+</div>
+<div id="comments-area-${containerContext}-${post.id}" class="hidden p-3 bg-gray-500/5 border-t border-gray-500/10 space-y-2">
+<div class="space-y-1.5">${commentsHTML}</div>
+<div class="flex gap-2 mt-2">
+<input type="text" id="comment-in-${containerContext}-${post.id}" placeholder="Коментувати..." class="flex-1 custom-input border rounded-xl px-3 py-1.5 text-xs focus:outline-none">
+<button onclick="addComment(${post.id}, '${containerContext}')" class="bg-[#b19ffb] text-black font-black text-xs px-3 py-1.5 rounded-lg">ОК</button>
+</div>
+</div>
+</div>`;
+}
 function renderFeed() {
-  const feed = document.getElementById('threads-feed');
-  const mainFeedPosts = postsDB.filter(p => !p.isRepost);
-  if(mainFeedPosts.length === 0) { feed.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Стрічка порожня</p>`; return; }
-  feed.innerHTML = mainFeedPosts.map(p => createPostCardHTML(p, 'feed')).join('');
+const feed = document.getElementById('threads-feed');
+const mainFeedPosts = postsDB.filter(p => !p.isRepost);
+if(mainFeedPosts.length === 0) { feed.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Стрічка порожня</p>`; return; }
+feed.innerHTML = mainFeedPosts.map(p => createPostCardHTML(p, 'feed')).join('');
 }
-
-async function addComment(id, context) {
-  const inp = document.getElementById(`comment-in-${context}-${id}`);
-  if(!inp || !inp.value.trim()) return;
-  const post = postsDB.find(p => p.id === id);
-  if(post && post.firestoreId) {
-    await updateDoc(doc(db, "posts", post.firestoreId), {
-        comments: arrayUnion({ author: currentUser, text: inp.value.trim() })
-    });
-    inp.value = "";
-  }
+function addComment(id, context) {
+const inp = document.getElementById(`comment-in-${context}-${id}`);
+if(!inp || !inp.value.trim()) return;
+const post = postsDB.find(p => p.id === id);
+if(post) {
+post.comments.push({ author: currentUser, text: inp.value.trim() });
+localStorage.setItem('sensu_posts_db_v5', JSON.stringify(postsDB));
+renderFeed(); renderProfileSubTabs();
 }
-
-async function createNotification(targetUser, text) {
-  if (!isNotificationsEnabled || targetUser === currentUser) return;
-  const newNotif = { 
-    id: Date.now(), 
-    target: targetUser, 
-    from: currentUser, 
-    text: text, 
-    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
-  };
-  await addDoc(collection(db, "notifications"), newNotif);
 }
-
+function createNotification(targetUser, text) {
+if (!isNotificationsEnabled || targetUser === currentUser) return;
+notificationsDB.unshift({ id: Date.now(), target: targetUser, from: currentUser, text: text, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+localStorage.setItem('sensu_notifications_db', JSON.stringify(notificationsDB));
+renderNotifications();
+}
 function renderNotifications() {
-  const container = document.getElementById('notifications-list'); if(!container) return;
-  const myNotifs = notificationsDB.filter(n => n.target === currentUser);
-  if(myNotifs.length === 0) { container.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Сповіщень немає</p>`; return; }
-  container.innerHTML = myNotifs.map(n => `<div class="custom-card border p-2.5 rounded-xl flex items-center justify-between text-xs"><div><span class="text-[#b19ffb] font-bold cursor-pointer" onclick="viewUserProfile('${n.from}')">@${n.from}</span><span class="text-custom-title"> ${n.text}</span></div><span class="text-[10px] text-custom-muted">${n.time}</span></div>`).join('');
+const container = document.getElementById('notifications-list'); if(!container) return;
+const myNotifs = notificationsDB.filter(n => n.target === currentUser);
+if(myNotifs.length === 0) { container.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-6">Сповіщень немає</p>`; return; }
+container.innerHTML = myNotifs.map(n => `<div class="custom-card border p-2.5 rounded-xl flex items-center justify-between text-xs"><div><span class="text-[#b19ffb] font-bold cursor-pointer" onclick="viewUserProfile('${n.from}')">@${n.from}</span><span class="text-custom-title"> ${n.text}</span></div><span class="text-[10px] text-custom-muted">${n.time}</span></div>`).join('');
 }
-
-async function clearNotifications() {
-  const q = query(collection(db, "notifications"), where("target", "==", currentUser));
-  const querySnapshot = await getDocs(q);
-  querySnapshot.forEach(async (document) => {
-      await deleteDoc(doc(db, "notifications", document.id));
-  });
-}
-
+function clearNotifications() { notificationsDB = notificationsDB.filter(n => n.target !== currentUser); localStorage.setItem('sensu_notifications_db', JSON.stringify(notificationsDB)); renderNotifications(); }
 function searchUsers(q) {
-  const res = document.getElementById('users-search-results'); const val = q.trim().toLowerCase(); if(!val) { res.innerHTML = ""; return; }
-  const matched = usersDB.filter(u => u.username.toLowerCase().includes(val));
-  res.innerHTML = matched.map(u => `<div class="custom-card border p-2.5 rounded-xl flex justify-between items-center"><span class="text-xs font-bold text-custom-title" onclick="viewUserProfile('${u.username}')">@${u.username}</span><button onclick="viewUserProfile('${u.username}')" class="bg-[#b19ffb]/10 text-[#b19ffb] text-xs font-bold px-3 py-1.5 rounded-lg">Дивитись</button></div>`).join('');
+const res = document.getElementById('users-search-results'); const val = q.trim().toLowerCase(); if(!val) { res.innerHTML = ""; return; }
+const matched = usersDB.filter(u => u.username.toLowerCase().includes(val));
+res.innerHTML = matched.map(u => `<div class="custom-card border p-2.5 rounded-xl flex justify-between items-center"><span class="text-xs font-bold text-custom-title" onclick="viewUserProfile('${u.username}')">@${u.username}</span><button onclick="viewUserProfile('${u.username}')" class="bg-[#b19ffb]/10 text-[#b19ffb] text-xs font-bold px-3 py-1.5 rounded-lg">Дивитись</button></div>`).join('');
 }
-
 function renderChatsList() {
-  const listContainer = document.getElementById('chats-list'); let chatPartners = [];
-  messagesDB.forEach(m => {
-    if(m.sender === currentUser && !chatPartners.includes(m.receiver)) chatPartners.push(m.receiver);
-    if(m.receiver === currentUser && !chatPartners.includes(m.sender)) chatPartners.push(m.sender);
-  });
-  if(chatPartners.length === 0) { listContainer.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-3">Немає чатів</p>`; return; }
+const listContainer = document.getElementById('chats-list'); let chatPartners = [];
+messagesDB.forEach(m => {
+if(m.sender === currentUser && !chatPartners.includes(m.receiver)) chatPartners.push(m.receiver);
+if(m.receiver === currentUser && !chatPartners.includes(m.sender)) chatPartners.push(m.sender);
+});
+if(chatPartners.length === 0) { listContainer.innerHTML = `<p class="text-xs text-custom-muted italic text-center py-3">Немає чатів</p>`; return; }
 
-  listContainer.innerHTML = chatPartners.map(pUser => {
-    const partnerData = usersDB.find(u => u.username === pUser);
-    let av = pUser[0].toUpperCase();
-    if(partnerData && partnerData.avatar) av = `<img src="${partnerData.avatar}" class="w-full h-full object-cover">`;
-    return `<div onclick="openChatWith('${pUser}')" class="custom-card border p-2.5 rounded-xl cursor-pointer flex items-center gap-2"><div class="w-6 h-6 bg-[#b19ffb] text-black text-[10px] font-black rounded-full flex items-center justify-center overflow-hidden">${av}</div><span class="text-xs font-bold text-custom-title">@${pUser}</span></div>`;
-  }).join('');
+listContainer.innerHTML = chatPartners.map(pUser => {
+const partnerData = usersDB.find(u => u.username === pUser);
+let av = pUser[0].toUpperCase();
+if(partnerData && partnerData.avatar) av = `<img src="${partnerData.avatar}" class="w-full h-full object-cover">`;
+return `<div onclick="openChatWith('${pUser}')" class="custom-card border p-2.5 rounded-xl cursor-pointer flex items-center gap-2"><div class="w-6 h-6 bg-[#b19ffb] text-black text-[10px] font-black rounded-full flex items-center justify-center overflow-hidden">${av}</div><span class="text-xs font-bold text-custom-title">@${pUser}</span></div>`;
+}).join('');
 }
-
 function openChatWith(username) {
-  currentActiveChatUser = username; switchTab('chats');
-  if(window.innerWidth < 768) { document.getElementById('chats-sidebar-area').classList.add('hidden'); document.getElementById('chats-main-area').classList.remove('hidden'); }
-  document.getElementById('active-chat-header').innerHTML = `<span class="cursor-pointer hover:underline text-custom-title" onclick="viewUserProfile('${username}')">Діалог з @${username}</span>`;
-  document.getElementById('active-chat-input-area').classList.remove('hidden'); renderActiveChatMessages();
+currentActiveChatUser = username; switchTab('chats');
+if(window.innerWidth < 768) { document.getElementById('chats-sidebar-area').classList.add('hidden'); document.getElementById('chats-main-area').classList.remove('hidden'); }
+document.getElementById('active-chat-header').innerHTML = `<span class="cursor-pointer hover:underline text-custom-title" onclick="viewUserProfile('${username}')">Діалог з @${username}</span>`;
+document.getElementById('active-chat-input-area').classList.remove('hidden'); renderActiveChatMessages();
 }
-
 function backToChatsList() { document.getElementById('chats-main-area').classList.add('hidden'); document.getElementById('chats-sidebar-area').classList.remove('hidden'); currentActiveChatUser = null; }
-
 function renderActiveChatMessages() {
-  const container = document.getElementById('active-chat-messages'); container.innerHTML = ""; if(!currentActiveChatUser) return;
-  const conversation = messagesDB.filter(m => (m.sender === currentUser && m.receiver === currentActiveChatUser) || (m.sender === currentActiveChatUser && m.receiver === currentUser)).sort((a,b) => a.timestamp - b.timestamp);
-  container.innerHTML = conversation.map(m => `<div class="flex ${m.sender === currentUser ? 'justify-end' : 'justify-start'} w-full"><div class="max-w-[80%] border p-2 rounded-xl bg-gray-500/5 border-gray-500/10"><p class="break-words leading-tight">${m.text}</p></div></div>`).join('');
-  container.scrollTop = container.scrollHeight;
+const container = document.getElementById('active-chat-messages'); container.innerHTML = ""; if(!currentActiveChatUser) return;
+const conversation = messagesDB.filter(m => (m.sender === currentUser && m.receiver === currentActiveChatUser) || (m.sender === currentActiveChatUser && m.receiver === currentUser)).sort((a,b) => a.timestamp - b.timestamp);
+container.innerHTML = conversation.map(m => `<div class="flex ${m.sender === currentUser ? 'justify-end' : 'justify-start'} w-full"><div class="max-w-[80%] border p-2 rounded-xl bg-gray-500/5 border-gray-500/10"><p class="break-words leading-tight">${m.text}</p></div></div>`).join('');
+container.scrollTop = container.scrollHeight;
 }
-
-async function sendChatMessage() {
-  const inp = document.getElementById('chat-msg-input'); const txt = inp.value.trim(); if(!txt || !currentActiveChatUser) return;
-  const newMsg = { timestamp: Date.now(), sender: currentUser, receiver: currentActiveChatUser, text: txt };
-  await addDoc(collection(db, "messages"), newMsg);
-  inp.value = "";
+function sendChatMessage() {
+const inp = document.getElementById('chat-msg-input'); const txt = inp.value.trim(); if(!txt || !currentActiveChatUser) return;
+messagesDB.push({ timestamp: Date.now(), sender: currentUser, receiver: currentActiveChatUser, text: txt });
+localStorage.setItem('sensu_messages_db', JSON.stringify(messagesDB)); inp.value = ""; renderActiveChatMessages();
 }
-
 function toggleTheme() { const isLight = document.documentElement.classList.toggle('light-theme'); localStorage.setItem('sensu_theme', isLight ? 'light' : 'dark'); }
 function toggleNotificationsActive() { isNotificationsEnabled = !isNotificationsEnabled; localStorage.setItem('sensu_notif_enabled', isNotificationsEnabled); }
-
-// Експортуємо функції в об'єкт window для inline HTML подій (onclick/oninput)
-window.handleAuth = handleAuth; window.createPost = createPost; window.repostPost = repostPost;
-window.deletePost = deletePost; window.likePost = likePost; window.addComment = addComment;
-window.clearNotifications = clearNotifications; window.saveBio = saveBio; window.deleteTrack = deleteTrack;
-window.sendChatMessage = sendChatMessage; window.toggleFollow = toggleFollow; window.viewUserProfile = viewUserProfile;
-window.openFollowersModal = openFollowersModal; window.closeFollowersModal = closeFollowersModal;
-window.switchProfileSubTab = switchProfileSubTab; window.switchViewProfileSubTab = switchViewProfileSubTab;
-window.openEditBio = openEditBio; window.toggleSettingsMenu = toggleSettingsMenu; window.closeSettingsMenu = closeSettingsMenu;
-window.toggleAuthMode = toggleAuthMode; window.logout = logout; window.switchTab = switchTab;
-window.openNewPostModal = openNewPostModal; window.closeNewPostModal = closeNewPostModal;
-window.handlePostFileSelect = handlePostFileSelect; window.clearPostFile = clearPostFile;
-window.searchUsers = searchUsers; window.backToChatsList = backToChatsList; window.toggleTheme = toggleTheme;
-window.toggleNotificationsActive = toggleNotificationsActive; window.handleMusicUpload = handleMusicUpload;
-window.openChatWith = openChatWith;
 </script>
 </body>
 </html>
